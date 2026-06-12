@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+*.duckdb
+data/raw/*
+data/processed/*
+data/external/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/external/.gitkeep
+.streamlit/secrets.toml
