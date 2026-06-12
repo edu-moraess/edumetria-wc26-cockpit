@@ -1,0 +1,39 @@
+# --- Core ---
+streamlit>=1.38
+pandas>=2.2
+polars>=1.6
+numpy>=1.26
+
+# --- Visualização ---
+plotly>=5.24
+
+# --- Banco de dados ---
+duckdb>=1.0
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+
+# --- API ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# --- Modelagem estatística / econométrica ---
+statsmodels>=0.14
+arch>=7.0          # GARCH-X, DCC
+
+# --- Machine Learning ---
+scikit-learn>=1.5
+xgboost>=2.1
+lightgbm>=4.5
+
+# --- Séries temporais ---
+prophet>=1.1
+torch>=2.4         # LSTM
+
+# --- Dados externos ---
+requests>=2.32
+python-dotenv>=1.0
+yfinance>=0.2
+
+# --- Testes ---
+pytest>=8.3
+pytest-cov>=5.0
