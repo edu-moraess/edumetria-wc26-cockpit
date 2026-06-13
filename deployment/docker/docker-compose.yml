@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - FIFA2026_DB_BACKEND=postgres
+      - FIFA2026_POSTGRES_URL=postgresql://fifa:fifa@db:5432/fifa2026
+    depends_on:
+      - db
+    volumes:
+      - ../../data:/app/data
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=fifa
+      - POSTGRES_PASSWORD=fifa
+      - POSTGRES_DB=fifa2026
+    volumes:
+      - fifa2026_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  etl:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    entrypoint: ["python", "-m", "etl.run_pipeline"]
+    environment:
+      - FIFA2026_DB_BACKEND=postgres
+      - FIFA2026_POSTGRES_URL=postgresql://fifa:fifa@db:5432/fifa2026
+    depends_on:
+      - db
+    volumes:
+      - ../../data:/app/data
+
+volumes:
+  fifa2026_pgdata:
