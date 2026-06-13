@@ -21,6 +21,9 @@ EXTERNAL_DATA_DIR = DATA_DIR / "external"
 DATABASE_DIR = ROOT_DIR / "database"
 DUCKDB_PATH = DATABASE_DIR / "fifa2026.duckdb"
 
+# ⬇️ LINHA ADICIONADA para resolver o ImportError
+DB_DIR = DATABASE_DIR   # aponta para a pasta onde está o banco de dados
+
 # ------------------------------------------------------------------
 # BANCO DE DADOS
 # ------------------------------------------------------------------
