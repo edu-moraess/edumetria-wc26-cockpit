@@ -1,14 +1,15 @@
 """
 dashboards/pages/01_executive_overview.py
 Página 1 — Executive Overview
-KPIs: PIB Incremental, Receita Fiscal, Empregos, Turismo, FDI, WCLI,
-Fluxo Aéreo, Ocupação Hoteleira.
+KPIs institucionais (baseline FIFA, pendente de auditoria) +
+snapshot de mercado em tempo real (dados via yfinance).
 """
 
 import sys
 from pathlib import Path
 
 import streamlit as st
+import pandas as pd
 import plotly.graph_objects as go
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -17,12 +18,30 @@ if str(ROOT_DIR) not in sys.path:
 
 from config import FIFA_BASELINE, HOST_COUNTRIES, COUNTRY_NAMES, WCLI_CLASSIFICATION  # noqa: E402
 from dashboards.components import page_header, kpi_row, apply_theme, data_pending_notice  # noqa: E402
+from database.connection import get_connection  # noqa: E402
 
 page_header(
     "Executive Overview",
     "Síntese executiva do impacto econômico líquido — FIFA World Cup 2026™ "
     "(EUA · Canadá · México)",
 )
+
+
+@st.cache_data(ttl=600)
+def load_indicator(indicator_code: str) -> pd.DataFrame:
+    with get_connection() as conn:
+        df = conn.execute(
+            """
+            SELECT period, value
+            FROM fact_indicator_values
+            WHERE indicator_code = ?
+            ORDER BY period
+            """,
+            [indicator_code],
+        ).df()
+    df["period"] = pd.to_datetime(df["period"])
+    return df
+
 
 scope = st.selectbox(
     "Escopo geográfico",
@@ -32,9 +51,12 @@ scope = st.selectbox(
 st.caption(
     "Valores baseline a partir do FIFA 2026 Socioeconomic Impact Analysis "
     "(sujeitos a auditoria — ver seção de Auditoria Crítica no white paper). "
-    "KPIs marcados com * são placeholders até integração do pipeline ETL."
+    "KPIs marcados com * são placeholders até integração da modelagem econômica."
 )
 
+# ------------------------------------------------------------------
+# KPI GRID — LINHA 1 (modelagem econômica, ainda pendente)
+# ------------------------------------------------------------------
 kpi_row([
     ("PIB Incremental (líquido)*", "US$ — bn", None),
     ("Receita Fiscal*", "US$ — bn", None),
@@ -42,6 +64,9 @@ kpi_row([
     ("Turismo (visitantes incrementais)*", "—", None),
 ])
 
+# ------------------------------------------------------------------
+# KPI GRID — LINHA 2 (modelagem econômica, ainda pendente)
+# ------------------------------------------------------------------
 kpi_row([
     ("FDI Atraído (cumulativo 2026-2035)*", "US$ — bn", None),
     ("World Cup Legacy Index (WCLI)*", "—", None),
@@ -51,6 +76,34 @@ kpi_row([
 
 st.markdown("###")
 
+# ------------------------------------------------------------------
+# SNAPSHOT DE MERCADO — DADOS REAIS (yfinance)
+# ------------------------------------------------------------------
+st.subheader("📡 Snapshot de Mercado (dados reais — atualizado via pipeline ETL)")
+
+market_kpis = []
+for code, label, fmt in [
+    ("SP500", "S&P 500", "{:,.0f}"),
+    ("TSX", "TSX Composite", "{:,.0f}"),
+    ("IPC_MEXICO", "IPC México", "{:,.0f}"),
+    ("VIX", "VIX", "{:,.2f}"),
+]:
+    df = load_indicator(code)
+    if not df.empty:
+        last = df["value"].iloc[-1]
+        prev = df["value"].iloc[-2] if len(df) > 1 else last
+        delta_pct = (last / prev - 1) * 100 if prev else 0
+        market_kpis.append((label, fmt.format(last), f"{delta_pct:+.2f}%"))
+    else:
+        market_kpis.append((label, "—", None))
+
+kpi_row(market_kpis)
+
+st.markdown("###")
+
+# ------------------------------------------------------------------
+# REFERÊNCIA — BASELINE FIFA (BRUTO, NÃO AUDITADO)
+# ------------------------------------------------------------------
 with st.expander("📋 Referência: Indicadores Brutos FIFA (ponto de partida, pré-auditoria)"):
     g = FIFA_BASELINE["global"]
     col1, col2, col3 = st.columns(3)
@@ -86,24 +139,45 @@ with st.expander("📋 Referência: Indicadores Brutos FIFA (ponto de partida, p
 
 st.markdown("###")
 
-st.subheader("Impacto Bruto vs. Líquido vs. Contrafactual")
+# ------------------------------------------------------------------
+# GRÁFICO — TURISMO REAL (CAN + MEX) — ÚLTIMOS DADOS DISPONÍVEIS
+# ------------------------------------------------------------------
+st.subheader("Turismo Internacional — Séries Reais (Canadá e México)")
 
 fig = go.Figure()
-fig.add_trace(go.Bar(name="Bruto (FIFA)", x=["EUA", "Canadá", "México"], y=[30.5, 2.0, 3.0]))
-fig.add_trace(go.Bar(name="Líquido (estimado)*", x=["EUA", "Canadá", "México"], y=[None, None, None]))
-fig.add_trace(go.Bar(name="Contrafactual (sem evento)*", x=["EUA", "Canadá", "México"], y=[None, None, None]))
-fig.update_layout(barmode="group", title="PIB Adicional — US$ bn (placeholder)")
-apply_theme(fig)
-st.plotly_chart(fig, use_container_width=True)
+has_data = False
+for country_code, label, color in [("CAN", "Canadá (StatCan)", "#3FB68B"), ("MEX", "México (Banxico)", "#C9A227")]:
+    with get_connection() as conn:
+        df = conn.execute(
+            """
+            SELECT period, value
+            FROM fact_indicator_values
+            WHERE country_code = ? AND indicator_code = 'TOURISM_ARRIVALS'
+            ORDER BY period
+            """,
+            [country_code],
+        ).df()
+    if not df.empty:
+        df["period"] = pd.to_datetime(df["period"])
+        fig.add_trace(go.Scatter(x=df["period"], y=df["value"], mode="lines+markers", name=label, line=dict(color=color)))
+        has_data = True
 
-data_pending_notice("Modelagem de impacto líquido/contrafactual")
+fig.update_layout(title="Chegadas de turistas internacionais — série histórica")
+apply_theme(fig)
+
+if has_data:
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    data_pending_notice("Turismo — sem dados carregados (rode o pipeline ETL)")
 
 st.markdown("###")
 
+# ------------------------------------------------------------------
+# WCLI — TABELA DE CLASSIFICAÇÃO DE REFERÊNCIA
+# ------------------------------------------------------------------
 st.subheader("World Cup Legacy Index (WCLI) — Escala de Classificação")
-import pandas as pd  # noqa: E402
 
 wcli_df = pd.DataFrame(WCLI_CLASSIFICATION, columns=["De", "Até", "Classificação"])
 st.dataframe(wcli_df, hide_index=True, use_container_width=True)
 
-data_pending_notice("Cálculo do WCLI por país e cenário")
+data_pending_notice("Cálculo do WCLI por país e cenário — depende de impacto líquido/contrafactual")
