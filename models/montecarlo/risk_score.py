@@ -10,9 +10,13 @@ Componentes (cada um normalizado 0-100, onde 100 = risco máximo):
 - FX_INDEX       : volatilidade recente do dólar (estresse cambial)
 
 Metodologia de normalização: percentil histórico do valor mais recente
-dentro da própria série (janela disponível). Isto evita "magic numbers"
-de thresholds arbitrários — o score reflete onde o valor atual se
-posiciona na distribuição histórica observada.
+dentro da própria série (janela disponível).
+
+SANITY CHECKS: cada componente valida se o valor mais recente está
+dentro de uma faixa plausível. Se não estiver, o componente é marcado
+como "suspeito" e EXCLUÍDO do cálculo (em vez de distorcer o score
+silenciosamente). Isso evita que dados desatualizados/inconsistentes
+do yfinance gerem classificações de risco enganosas.
 
 Uso:
     python -m models.montecarlo.risk_score
@@ -22,7 +26,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -34,6 +37,14 @@ RISK_WEIGHTS = {
     "vix": 0.40,
     "oil_shock": 0.35,
     "fx_volatility": 0.25,
+}
+
+# Faixas plausíveis para sanity check do valor MAIS RECENTE de cada série.
+# Fora dessa faixa => dado provavelmente desatualizado/inconsistente.
+PLAUSIBLE_RANGES = {
+    "VIX": (5, 100),
+    "WTI_CRUDE": (15, 150),       # US$/bbl
+    "FX_INDEX": (80, 160),        # índice DTWEXBGS, base jan/2006=100
 }
 
 
@@ -73,14 +84,29 @@ def _percentile_score(series: pd.Series) -> float | None:
     return float((series < last_value).mean() * 100)
 
 
+def _check_plausible(indicator_code: str, value: float | None) -> bool:
+    """Retorna True se o valor está dentro da faixa plausível (ou se não há faixa definida)."""
+    if value is None:
+        return False
+    low, high = PLAUSIBLE_RANGES.get(indicator_code, (float("-inf"), float("inf")))
+    return low <= value <= high
+
+
 def score_vix() -> tuple[float | None, dict]:
     """Score VIX: percentil do nível atual na própria distribuição histórica."""
     series = _load_series("VIX")
-    score = _percentile_score(series)
     detail = {
         "current_value": float(series.iloc[-1]) if not series.empty else None,
+        "last_date": series.index[-1].strftime("%Y-%m-%d") if not series.empty else None,
         "n_observations": len(series),
     }
+
+    if not _check_plausible("VIX", detail["current_value"]):
+        detail["status"] = "suspeito (fora da faixa plausível)"
+        return None, detail
+
+    score = _percentile_score(series)
+    detail["status"] = "ok"
     return score, detail
 
 
@@ -88,25 +114,35 @@ def score_oil_shock() -> tuple[float | None, dict]:
     """
     Score de choque no petróleo: desvio % do preço atual (WTI) vs. média
     móvel de 252 dias (≈1 ano), normalizado via percentil histórico
-    desse desvio.
+    desse desvio absoluto.
     """
     series = _load_series("WTI_CRUDE")
-    if series.empty or len(series) < 252:
-        return None, {"current_value": None, "n_observations": len(series)}
+
+    detail = {
+        "current_value": float(series.iloc[-1]) if not series.empty else None,
+        "last_date": series.index[-1].strftime("%Y-%m-%d") if not series.empty else None,
+        "n_observations": len(series),
+    }
+
+    if not _check_plausible("WTI_CRUDE", detail["current_value"]):
+        detail["status"] = "suspeito (fora da faixa plausível US$15-150/bbl)"
+        return None, detail
+
+    if len(series) < 252:
+        detail["status"] = "insuficiente (< 252 observações)"
+        return None, detail
 
     rolling_mean = series.rolling(window=252).mean()
     deviation = (series - rolling_mean) / rolling_mean * 100
     deviation = deviation.dropna()
 
     if deviation.empty:
-        return None, {"current_value": float(series.iloc[-1]), "n_observations": len(series)}
+        detail["status"] = "insuficiente (desvio não calculável)"
+        return None, detail
 
-    score = _percentile_score(deviation.abs())  # desvio absoluto: alta ou baixa contam como risco
-    detail = {
-        "current_value": float(series.iloc[-1]),
-        "deviation_pct": float(deviation.iloc[-1]),
-        "n_observations": len(series),
-    }
+    score = _percentile_score(deviation.abs())
+    detail["deviation_pct"] = float(deviation.iloc[-1])
+    detail["status"] = "ok"
     return score, detail
 
 
@@ -117,22 +153,32 @@ def score_fx_volatility() -> tuple[float | None, dict]:
     trade-weighted, FRED), normalizada via percentil histórico.
     """
     series = _load_series("FX_INDEX", country_code="USA")
-    if series.empty or len(series) < 60:
-        return None, {"current_value": None, "n_observations": len(series)}
+
+    detail = {
+        "current_value": float(series.iloc[-1]) if not series.empty else None,
+        "last_date": series.index[-1].strftime("%Y-%m-%d") if not series.empty else None,
+        "n_observations": len(series),
+    }
+
+    if not _check_plausible("FX_INDEX", detail["current_value"]):
+        detail["status"] = "suspeito (fora da faixa plausível 80-160)"
+        return None, detail
+
+    if len(series) < 60:
+        detail["status"] = "insuficiente (< 60 observações)"
+        return None, detail
 
     returns = series.pct_change().dropna()
     rolling_vol = returns.rolling(window=21).std()
     rolling_vol = rolling_vol.dropna()
 
     if rolling_vol.empty:
-        return None, {"current_value": float(series.iloc[-1]), "n_observations": len(series)}
+        detail["status"] = "insuficiente (vol. não calculável)"
+        return None, detail
 
     score = _percentile_score(rolling_vol)
-    detail = {
-        "current_value": float(series.iloc[-1]),
-        "realized_vol_21d": float(rolling_vol.iloc[-1]),
-        "n_observations": len(series),
-    }
+    detail["realized_vol_21d"] = float(rolling_vol.iloc[-1])
+    detail["status"] = "ok"
     return score, detail
 
 
@@ -157,8 +203,8 @@ def classify_risk(score: float) -> str:
 def calculate_risk_score() -> dict:
     """
     Calcula o World Cup Risk Score (0-100) combinando os componentes
-    disponíveis. Componentes ausentes têm peso redistribuído
-    proporcionalmente (mesma lógica do WCLI calculator).
+    disponíveis e plausíveis. Componentes ausentes ou suspeitos têm
+    peso redistribuído proporcionalmente entre os demais.
     """
     components = {}
     for name, func in COMPONENT_FUNCS.items():
@@ -177,7 +223,7 @@ def calculate_risk_score() -> dict:
             available[k] * (RISK_WEIGHTS[k] / weight_sum) for k in available
         )
         classification = classify_risk(risk_score)
-        completeness = (weight_sum) * 100
+        completeness = weight_sum * 100
 
     return {
         "risk_score": risk_score,
@@ -193,13 +239,13 @@ def run():
 
     for name, data in result["components"].items():
         score = data["score"]
-        status = f"{score:.1f}" if score is not None else "indisponível"
+        status = f"{score:.1f}" if score is not None else "excluído"
         print(f"  {name:15s}: percentil={status}  detalhe={data['detail']}")
 
     if result["risk_score"] is not None:
         print(f"\nRisk Score: {result['risk_score']:.1f} ({result['classification']})")
     else:
-        print("\nRisk Score: indisponível (sem dados suficientes)")
+        print("\nRisk Score: indisponível (sem dados suficientes/plausíveis)")
 
     print(f"Completeness: {result['completeness_pct']:.0f}%")
 
