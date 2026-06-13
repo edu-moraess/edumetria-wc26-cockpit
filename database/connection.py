@@ -1,7 +1,19 @@
 import os
+import sys
+from pathlib import Path
+
+# ------------------------------------------------------------------
+# Garante que o diretório raiz do projeto esteja no sys.path
+# antes de qualquer import interno
+# ------------------------------------------------------------------
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import duckdb
 import psycopg2
-from config import DB_BACKEND, DUCKDB_PATH
+from config import DB_BACKEND, DUCKDB_PATH, DB_DIR   # agora o config é encontrado
+
 
 def get_connection():
     """
@@ -11,7 +23,6 @@ def get_connection():
     if DB_BACKEND == 'duckdb':
         conn = duckdb.connect(DUCKDB_PATH)
         return conn
-        
     elif DB_BACKEND == 'postgres':
         conn = psycopg2.connect(
             user=os.getenv("POSTGRES_USER"),
@@ -24,23 +35,19 @@ def get_connection():
     else:
         raise ValueError(f"Backend de banco de dados desconhecido: {DB_BACKEND}")
 
+
 def init_db():
     """
     Lê o schema.sql e inicializa as tabelas no banco de dados.
     """
-    # Usando sys.path para garantir a importação do config na raiz
-    import sys
-    from pathlib import Path
-    sys.path.append(str(Path(__file__).resolve().parent.parent))
-    
-    from config import DB_DIR, DB_BACKEND
-    schema_path = DB_DIR / "schema.sql"
-    
+    schema_path = DB_DIR / "schema.sql"   # DB_DIR aponta para a pasta database/
+    if not schema_path.exists():
+        raise FileNotFoundError(f"Arquivo schema.sql não encontrado em {schema_path}")
+
     with open(schema_path, 'r') as file:
         schema_sql = file.read()
-        
+
     conn = get_connection()
-    
     if DB_BACKEND == 'duckdb':
         conn.execute(schema_sql)
         print("Tabelas inicializadas no DuckDB com sucesso.")
@@ -49,9 +56,8 @@ def init_db():
             cur.execute(schema_sql)
         conn.commit()
         print("Tabelas inicializadas no Postgres com sucesso.")
-        
     conn.close()
+
 
 if __name__ == "__main__":
     init_db()
-  
