@@ -1,7 +1,7 @@
 """
 dashboards/pages/07_geopolitica.py
 Página 7 — Geopolítica
-Petróleo, VIX, World Cup Risk Score (dados reais).
+Petróleo, VIX, World Cup Risk Score (dados reais, com sanity checks).
 """
 
 import sys
@@ -129,6 +129,12 @@ with tabs[2]:
         Score mais alto = nível atual mais extremo em relação ao histórico
         observado de cada componente (não é uma previsão, é um termômetro
         de "quão fora do normal" estão as condições atuais).
+
+        **Sanity check**: cada componente valida se o valor mais recente da
+        série está dentro de uma faixa plausível (ex: WTI entre US$15-150/bbl).
+        Componentes com dados fora da faixa esperada são **excluídos** do
+        cálculo (peso redistribuído entre os demais) — evita que um dado
+        desatualizado/inconsistente distorça o score.
         """
     )
 
@@ -139,7 +145,6 @@ with tabs[2]:
             score = risk_result["risk_score"]
             classification = risk_result["classification"]
 
-            # Cor por nível de risco (vermelho = alerta, verde = ok)
             color_map = {
                 "Baixo": "#3FB68B",
                 "Moderado": "#C9A227",
@@ -165,8 +170,11 @@ with tabs[2]:
             st.metric(
                 "Completeness",
                 f"{risk_result['completeness_pct']:.0f}%",
-                help="% do peso do índice baseado em componentes com dados suficientes",
+                help="% do peso do índice baseado em componentes com dados disponíveis e plausíveis",
             )
+
+            if risk_result["completeness_pct"] < 100:
+                st.caption("⚠️ Um ou mais componentes foram excluídos — ver detalhamento abaixo.")
 
         st.markdown("###")
         st.markdown("**Detalhamento por componente:**")
@@ -185,21 +193,24 @@ with tabs[2]:
             detail_parts = []
             if detail.get("current_value") is not None:
                 detail_parts.append(f"Valor atual: {detail['current_value']:.2f}")
-            if "deviation_pct" in detail and detail["deviation_pct"] is not None:
+            if detail.get("last_date"):
+                detail_parts.append(f"Data: {detail['last_date']}")
+            if "deviation_pct" in detail:
                 detail_parts.append(f"Desvio vs. média 1a: {detail['deviation_pct']:+.1f}%")
-            if "realized_vol_21d" in detail and detail["realized_vol_21d"] is not None:
+            if "realized_vol_21d" in detail:
                 detail_parts.append(f"Vol. realizada 21d: {detail['realized_vol_21d']*100:.2f}%")
-            detail_parts.append(f"Observações: {detail.get('n_observations', 0):,}")
+            detail_parts.append(f"Obs: {detail.get('n_observations', 0):,}")
+            detail_parts.append(f"Status: {detail.get('status', '—')}")
 
             rows.append({
                 "Componente": component_labels.get(name, name.replace("_", " ").title()),
-                "Percentil Histórico": f"{score:.1f}" if score is not None else "—",
+                "Percentil": f"{score:.1f}" if score is not None else "excluído",
                 "Detalhe": " · ".join(detail_parts),
             })
 
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     else:
-        data_pending_notice("Risk Score — dados insuficientes (mínimo 30-252 observações por componente)")
+        data_pending_notice("Risk Score — nenhum componente com dados suficientes/plausíveis")
 
     st.caption(
         "Classificação: <25 Baixo · 25-50 Moderado · 50-75 Elevado · >75 Crítico"
