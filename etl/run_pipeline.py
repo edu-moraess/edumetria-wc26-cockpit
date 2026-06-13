@@ -1,12 +1,6 @@
 """
 etl/run_pipeline.py
 Orquestra o pipeline ETL completo: extractors → transformers → loaders.
-
-Uso local:
-    export FRED_API_KEY=... BANXICO_TOKEN=...
-    python -m etl.run_pipeline
-
-Uso no Streamlit: chamado via botão na sidebar (ver app.py)
 """
 
 import sys
@@ -16,9 +10,16 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from etl.extractors import fred, yfinance_markets, tourism_open_sources  # noqa: E402
-from etl.transformers import clean_macro, clean_markets, clean_tourism  # noqa: E402
-from etl.loaders import load_indicators  # noqa: E402
+# Verificação antecipada do config
+try:
+    from config import DB_DIR  # noqa: F401
+except ImportError as e:
+    print(f"ERRO CRÍTICO: Não foi possível importar 'config'. Verifique o sys.path. Detalhe: {e}")
+    sys.exit(1)
+
+from etl.extractors import fred, yfinance_markets, tourism_open_sources
+from etl.transformers import clean_macro, clean_markets, clean_tourism
+from etl.loaders import load_indicators
 
 
 def run(log=print):
