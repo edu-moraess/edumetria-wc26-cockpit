@@ -1,23 +1,12 @@
 """
 etl/extractors/tourism_open_sources.py
-Extractor de dados de turismo via fontes públicas/gratuitas — substitui
-o Tourism Economics (pago) para o MVP.
+Extractor de dados de turismo via fontes públicas/gratuitas.
 
-Fontes:
-- StatCan (Canadá): API REST aberta, sem chave necessária
-- Banxico (México): API REST, requer "token" gratuito
-  (obter em: https://www.banxico.org.mx/SieAPIRest/service/v1/token)
-- US NTTO: não tem API REST moderna — dados via download manual de
-  arquivos (CSV/XLSX) do site oficial; este extractor deixa o caminho
-  documentado para integração futura via download manual + data/external/
-
-NOTA: Este extractor cobre Canadá e México programaticamente. Para EUA,
-o caminho recomendado no curto prazo é baixar manualmente os relatórios
-do NTTO (https://www.trade.gov/national-travel-tourism-office) e colocar
-em data/external/ntto_usa/ — o transformer correspondente lerá esse CSV.
+- StatCan (Canadá): API REST aberta, sem chave
+- Banxico (México): requer BANXICO_TOKEN (Secrets ou .env)
+- EUA (NTTO): sem API — download manual, ver data/external/ntto_usa/
 """
 
-import os
 import sys
 from pathlib import Path
 from datetime import date
@@ -30,22 +19,16 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from config import RAW_DATA_DIR  # noqa: E402
+from config_secrets import get_secret  # noqa: E402
 
-# ------------------------------------------------------------------
-# CANADÁ — Statistics Canada (StatCan) API
-# Tabela 24-10-0053-01: Chegadas de viajantes internacionais
-# ------------------------------------------------------------------
 STATCAN_BASE_URL = "https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorsAndLatestNPeriods"
 
-# Vetor de exemplo: total de chegadas internacionais ao Canadá (mensal)
-# Para encontrar outros vetores: https://www150.statcan.gc.ca/n1/pub/71-607-x/71-607-x2018005-eng.htm
 STATCAN_VECTORS = {
     "v1": "chegadas_internacionais_canada_total",
 }
 
 
 def fetch_statcan(vector_id: str, n_periods: int = 60) -> pd.DataFrame:
-    """Busca os últimos N períodos de um vetor StatCan."""
     payload = [{"vectorId": vector_id.replace("v", ""), "latestN": n_periods}]
     resp = requests.post(STATCAN_BASE_URL, json=payload, timeout=30)
     resp.raise_for_status()
@@ -56,28 +39,18 @@ def fetch_statcan(vector_id: str, n_periods: int = 60) -> pd.DataFrame:
         if item.get("status") != "SUCCESS":
             continue
         for point in item["object"]["vectorDataPoint"]:
-            rows.append({
-                "date": point["refPer"],
-                "value": point["value"],
-            })
+            rows.append({"date": point["refPer"], "value": point["value"]})
     return pd.DataFrame(rows)
 
 
-# ------------------------------------------------------------------
-# MÉXICO — Banxico SIE API
-# Serie de exemplo: visitantes internacionais (turistas)
-# Token gratuito: https://www.banxico.org.mx/SieAPIRest/service/v1/token
-# ------------------------------------------------------------------
 BANXICO_BASE_URL = "https://www.banxico.org.mx/SieAPIRest/service/v1/series"
 
-# Série exemplo: SE39037 = Llegada de turistas internacionales (total)
 BANXICO_SERIES = {
     "SE39037": "turistas_internacionais_mexico",
 }
 
 
 def fetch_banxico(series_id: str, token: str) -> pd.DataFrame:
-    """Busca série completa do Banxico SIE."""
     url = f"{BANXICO_BASE_URL}/{series_id}/datos"
     headers = {"Bmx-Token": token}
     resp = requests.get(url, headers=headers, timeout=30)
@@ -94,15 +67,11 @@ def fetch_banxico(series_id: str, token: str) -> pd.DataFrame:
     return df.dropna()
 
 
-# ------------------------------------------------------------------
-# RUN
-# ------------------------------------------------------------------
 def run():
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     today = date.today().isoformat()
     frames = []
 
-    # --- Canadá ---
     for vector_id, label in STATCAN_VECTORS.items():
         try:
             print(f"Baixando StatCan {vector_id} ({label})...")
@@ -113,8 +82,7 @@ def run():
         except Exception as e:
             print(f"  ⚠️  Erro StatCan {vector_id}: {e}")
 
-    # --- México ---
-    banxico_token = os.getenv("BANXICO_TOKEN")
+    banxico_token = get_secret("BANXICO_TOKEN")
     if banxico_token:
         for series_id, label in BANXICO_SERIES.items():
             try:
@@ -126,12 +94,9 @@ def run():
             except Exception as e:
                 print(f"  ⚠️  Erro Banxico {series_id}: {e}")
     else:
-        print("  ⚠️  BANXICO_TOKEN não definido — pulando México. "
-              "Obtenha em https://www.banxico.org.mx/SieAPIRest/service/v1/token")
+        print("  ⚠️  BANXICO_TOKEN não definido — pulando México.")
 
-    # --- EUA ---
-    print("  ℹ️  EUA (NTTO): sem API automática. "
-          "Baixar manualmente e colocar em data/external/ntto_usa/")
+    print("  ℹ️  EUA (NTTO): sem API automática.")
 
     if not frames:
         print("Nenhum dado extraído.")
@@ -145,6 +110,4 @@ def run():
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
     run()
