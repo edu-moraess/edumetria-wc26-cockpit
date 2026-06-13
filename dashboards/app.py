@@ -107,7 +107,7 @@ if st.sidebar.button("Atualizar dados agora", use_container_width=True):
             st.sidebar.error(f"Erro no pipeline: {e}")
 
 # Mostra status do banco
-from database.connection import get_connection, init_schema  # noqa: E402
+from database.connection import get_connection, init_db as init_schema  # noqa: E402
 
 try:
     init_schema()
