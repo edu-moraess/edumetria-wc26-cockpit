@@ -134,21 +134,69 @@ with tabs[2]:
 
     if risk_result["risk_score"] is not None:
         col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Risk Score", f"{risk_result['risk_score']:.1f} / 100", risk_result["classification"])
-        with col2:
-            st.metric("Completeness", f"{risk_result['completeness_pct']:.0f}%",
-                      help="% do peso do índice baseado em componentes com dados suficientes")
 
+        with col1:
+            score = risk_result["risk_score"]
+            classification = risk_result["classification"]
+
+            # Cor por nível de risco (vermelho = alerta, verde = ok)
+            color_map = {
+                "Baixo": "#3FB68B",
+                "Moderado": "#C9A227",
+                "Elevado": "#E08E45",
+                "Crítico": "#E5534B",
+            }
+            color = color_map.get(classification, "#8B96A5")
+
+            st.markdown(
+                f"""
+                <div class="kpi-card">
+                    <div class="kpi-label">Risk Score</div>
+                    <div class="kpi-value">{score:.1f} / 100</div>
+                    <div style="color:{color}; font-size:0.9rem; font-weight:600;">
+                        ⚠ {classification}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with col2:
+            st.metric(
+                "Completeness",
+                f"{risk_result['completeness_pct']:.0f}%",
+                help="% do peso do índice baseado em componentes com dados suficientes",
+            )
+
+        st.markdown("###")
         st.markdown("**Detalhamento por componente:**")
+
+        component_labels = {
+            "vix": "VIX",
+            "oil_shock": "Choque no Petróleo (WTI)",
+            "fx_volatility": "Volatilidade Cambial (FX Index)",
+        }
+
         rows = []
         for name, data in risk_result["components"].items():
             score = data["score"]
+            detail = data["detail"]
+
+            detail_parts = []
+            if detail.get("current_value") is not None:
+                detail_parts.append(f"Valor atual: {detail['current_value']:.2f}")
+            if "deviation_pct" in detail and detail["deviation_pct"] is not None:
+                detail_parts.append(f"Desvio vs. média 1a: {detail['deviation_pct']:+.1f}%")
+            if "realized_vol_21d" in detail and detail["realized_vol_21d"] is not None:
+                detail_parts.append(f"Vol. realizada 21d: {detail['realized_vol_21d']*100:.2f}%")
+            detail_parts.append(f"Observações: {detail.get('n_observations', 0):,}")
+
             rows.append({
-                "Componente": name.replace("_", " ").title(),
+                "Componente": component_labels.get(name, name.replace("_", " ").title()),
                 "Percentil Histórico": f"{score:.1f}" if score is not None else "—",
-                "Detalhe": str(data["detail"]),
+                "Detalhe": " · ".join(detail_parts),
             })
+
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
     else:
         data_pending_notice("Risk Score — dados insuficientes (mínimo 30-252 observações por componente)")
