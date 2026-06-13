@@ -1,11 +1,8 @@
 """
 dashboards/app.py
 FIFA World Cup 2026™ — Impact Analytics Platform (Edumetria WC26 Cockpit)
-Entry point Streamlit. Define tema, navegação multi-página e header
-institucional. Conteúdo de cada página em dashboards/pages/.
-
-Executar:
-    streamlit run dashboards/app.py
+Entry point Streamlit. Define tema, navegação multi-página, header
+institucional e botão de atualização de dados (roda o ETL).
 """
 
 import sys
@@ -87,17 +84,56 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
+# ------------------------------------------------------------------
+# BOTÃO: ATUALIZAR DADOS (roda o pipeline ETL)
+# ------------------------------------------------------------------
+st.sidebar.markdown("### 🔄 Dados")
+
+if st.sidebar.button("Atualizar dados agora", use_container_width=True):
+    from etl import run_pipeline
+
+    log_box = st.sidebar.empty()
+    logs = []
+
+    def log(msg):
+        logs.append(str(msg))
+        log_box.code("\n".join(logs[-15:]))  # mostra últimas 15 linhas
+
+    with st.spinner("Rodando pipeline ETL... pode levar 1-2 minutos"):
+        try:
+            run_pipeline.run(log=log)
+            st.sidebar.success("Dados atualizados com sucesso!")
+        except Exception as e:
+            st.sidebar.error(f"Erro no pipeline: {e}")
+
+# Mostra status do banco
+from database.connection import get_connection, init_schema  # noqa: E402
+
+try:
+    init_schema()
+    with get_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) AS n FROM fact_indicator_values").df()["n"][0]
+    if count > 0:
+        st.sidebar.caption(f"✅ {count:,} registros no banco")
+    else:
+        st.sidebar.caption("⚠️ Banco vazio — clique em 'Atualizar dados'")
+except Exception as e:
+    st.sidebar.caption(f"⚠️ Banco não inicializado: {e}")
+
 st.sidebar.markdown(
     f"""
     <div class="institutional-footer">
         Horizonte de análise: 2026–2035<br>
         Sedes: 🇺🇸 EUA · 🇨🇦 Canadá · 🇲🇽 México<br>
-        Atualizado automaticamente via pipeline ETL
+        Atualização manual via botão acima
     </div>
     """,
     unsafe_allow_html=True,
 )
 
+# ------------------------------------------------------------------
+# NAVEGAÇÃO
+# ------------------------------------------------------------------
 PAGES_DIR = Path(__file__).resolve().parent / "pages"
 
 pages = [
