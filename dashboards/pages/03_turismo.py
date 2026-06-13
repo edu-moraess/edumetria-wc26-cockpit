@@ -65,7 +65,7 @@ country_code = st.selectbox(
     format_func=lambda c: COUNTRY_NAMES[c],
 )
 
-tabs = st.tabs(["Série Histórica", "Setores Beneficiados (estimativa)", "Comparação CAN vs MEX"])
+tabs = st.tabs(["Série Histórica", "Setores Beneficiados (em desenvolvimento)", "Comparação CAN vs MEX"])
 
 with tabs[0]:
     st.subheader(f"Chegadas de turistas internacionais — {COUNTRY_NAMES[country_code]}")
@@ -101,17 +101,35 @@ with tabs[0]:
             )
 
 with tabs[1]:
-    st.subheader("Impacto setorial estimado")
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=["Hotelaria", "Aviação", "Restaurantes", "Varejo", "Entretenimento"],
-        y=[None, None, None, None, None],
-        name="Receita incremental (US$ bn)",
-    ))
-    fig.update_layout(title="Receita incremental por setor (placeholder)")
-    apply_theme(fig)
-    st.plotly_chart(fig, use_container_width=True)
-    data_pending_notice("Decomposição setorial — requer modelo de gasto médio por visitante (Input-Output)")
+    st.subheader("Decomposição setorial do gasto turístico")
+
+    st.markdown(
+        """
+        Esta seção apresentará a **receita incremental por setor**
+        (hotelaria, aviação, restaurantes, varejo, entretenimento),
+        decompondo o gasto turístico total observado.
+
+        **Por que ainda não está disponível:**
+
+        Essa decomposição requer um modelo de **Input-Output** com
+        multiplicadores setoriais — não pode ser estimada de forma
+        confiável a partir apenas da série de chegadas de turistas.
+
+        **O que será necessário:**
+        - Multiplicadores setoriais (matriz Input-Output do país)
+        - Gasto médio por visitante, por segmento de origem
+        - Permanência média e padrão de consumo por setor
+
+        **Onde isso será implementado:** `models/econometric/input_output.py`
+        (ver roadmap do projeto).
+
+        Optamos por **não exibir um gráfico vazio ou estimativas
+        especulativas** nesta seção — em linha com o princípio do
+        projeto de separar evidência empírica de narrativa promocional.
+        """
+    )
+
+    data_pending_notice("Modelo Input-Output (multiplicadores setoriais)")
 
 with tabs[2]:
     st.subheader("Comparação: Canadá vs. México")
