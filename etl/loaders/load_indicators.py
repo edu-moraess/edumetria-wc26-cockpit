@@ -17,7 +17,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from config import PROCESSED_DATA_DIR  # noqa: E402
-from database.connection import get_connection, init_schema  # noqa: E402
+from database.connection import get_connection, init_db as init_schema
 
 # Catálogo de indicadores conhecidos — necessário para popular dim_indicator
 # antes da carga em fact_indicator_values (FK constraint).
