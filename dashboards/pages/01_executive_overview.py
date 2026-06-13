@@ -172,12 +172,35 @@ else:
 
 st.markdown("###")
 
+# # ------------------------------------------------------------------
+# WCLI — CÁLCULO PRELIMINAR (componentes disponíveis)
 # ------------------------------------------------------------------
-# WCLI — TABELA DE CLASSIFICAÇÃO DE REFERÊNCIA
-# ------------------------------------------------------------------
-st.subheader("World Cup Legacy Index (WCLI) — Escala de Classificação")
+st.subheader("World Cup Legacy Index (WCLI) — Cálculo Preliminar")
 
-wcli_df = pd.DataFrame(WCLI_CLASSIFICATION, columns=["De", "Até", "Classificação"])
-st.dataframe(wcli_df, hide_index=True, use_container_width=True)
+from models.montecarlo.wcli_calculator import calculate_wcli  # noqa: E402
 
-data_pending_notice("Cálculo do WCLI por país e cenário — depende de impacto líquido/contrafactual")
+wcli_rows = []
+for cc in HOST_COUNTRIES:
+    result = calculate_wcli(cc)
+    wcli_rows.append({
+        "País": COUNTRY_NAMES[cc],
+        "WCLI": f"{result['wcli_total']:.1f}" if result["wcli_total"] is not None else "—",
+        "Classificação": result["classification"],
+        "Completeness": f"{result['completeness_pct']:.0f}%",
+    })
+
+st.dataframe(pd.DataFrame(wcli_rows), hide_index=True, use_container_width=True)
+
+st.caption(
+    "⚠️ WCLI preliminar: apenas o componente 'Turismo' está calculado a partir "
+    "de dados reais (variação anual de chegadas internacionais). Os demais "
+    "componentes (PIB, Emprego, FDI, Infraestrutura, ESG) ainda dependem de "
+    "modelagem econométrica e entram como pendentes — o 'Completeness' indica "
+    "a fração do peso do índice já coberta por dados reais."
+)
+
+st.markdown("###")
+
+st.subheader("Escala de Classificação WCLI")
+wcli_scale_df = pd.DataFrame(WCLI_CLASSIFICATION, columns=["De", "Até", "Classificação"])
+st.dataframe(wcli_scale_df, hide_index=True, use_container_width=True)
