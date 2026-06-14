@@ -19,6 +19,10 @@ EXTERNAL_DATA_DIR = DATA_DIR / "external"
 DATABASE_DIR = ROOT_DIR / "database"
 DUCKDB_PATH = DATABASE_DIR / "fifa2026.duckdb"
 
+# Criar diretórios essenciais se não existirem
+for d in [RAW_DATA_DIR, PROCESSED_DATA_DIR, EXTERNAL_DATA_DIR, DATABASE_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
+
 # ------------------------------------------------------------------
 # BANCO DE DADOS
 # ------------------------------------------------------------------
@@ -110,37 +114,35 @@ SCENARIOS = ["conservador", "base", "otimista", "estresse"]
 
 # ------------------------------------------------------------------
 # IDENTIDADE VISUAL — QUANT INSTITUTIONAL GRADE
-#
-# Paleta ajustada para layout claro, minimalista e limpo
 # ------------------------------------------------------------------
 THEME = {
-    "background": "#FFFFFF",       # branco puro
-    "surface": "#F8FAFC",          # surface cards — cinza ultraclaro
-    "surface_alt": "#F1F5F9",      # surface alternativo
-    "border": "#E2E8F0",           # borda sutil
-    "primary": "#4C8BF5",          # azul cobalto — série principal
-    "accent": "#00C8FF",           # ciano frio — série secundária
-    "accent_warm": "#FFB300",      # âmbar controlado — destaque/alerta
-    "secondary": "#64748B",        # texto secundário
-    "text": "#0F172A",             # texto principal — escuro
-    "text_muted": "#94A3B8",       # texto desabilitado
-    "positive": "#00D4AA",         # verde menta frio
-    "negative": "#FF4560",         # vermelho coral frio
-    "neutral": "#4C8BF5",          # neutro = primary
-    "warning": "#FFB300",          # alerta = accent_warm
-    "grid": "#F1F5F9",             # grid estrutural
+    "background": "#FFFFFF",
+    "surface": "#F8FAFC",
+    "surface_alt": "#F1F5F9",
+    "border": "#E2E8F0",
+    "primary": "#4C8BF5",
+    "accent": "#00C8FF",
+    "accent_warm": "#FFB300",
+    "secondary": "#64748B",
+    "text": "#0F172A",
+    "text_muted": "#94A3B8",
+    "positive": "#00D4AA",
+    "negative": "#FF4560",
+    "neutral": "#4C8BF5",
+    "warning": "#FFB300",
+    "grid": "#F1F5F9",
     "font_family": "'IBM Plex Mono', 'Roboto Mono', 'Courier New', monospace",
 }
 
 SERIES_PALETTE = [
-    "#4C8BF5",   # azul cobalto (primary)
-    "#00C8FF",   # ciano frio
-    "#00D4AA",   # verde menta
-    "#FFB300",   # âmbar
-    "#A78BFA",   # roxo suave
-    "#F472B6",   # rosa frio
-    "#FF4560",   # vermelho coral
-    "#94A3B8",   # cinza azulado
+    "#4C8BF5",
+    "#00C8FF",
+    "#00D4AA",
+    "#FFB300",
+    "#A78BFA",
+    "#F472B6",
+    "#FF4560",
+    "#94A3B8",
 ]
 
 PLOTLY_BASE = {
