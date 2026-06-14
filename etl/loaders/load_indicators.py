@@ -1,6 +1,7 @@
 """
 etl/loaders/load_indicators.py
-Recria as tabelas dim_* e fact_indicator_values e carrega dados.
+Carrega dados processados sem dropar tabelas que têm dependências.
+Estratégia: DELETE + RELOAD (preserva constraints)
 """
 
 import sys
@@ -63,57 +64,44 @@ SOURCE_CATALOG = [
 SOURCE_NAME_TO_ID = {name: sid for sid, name, _, _ in SOURCE_CATALOG}
 KNOWN_CODES = {row[0] for row in INDICATOR_CATALOG}
 
-def recreate_schema(conn):
-    """Recria todas as tabelas do zero."""
-    conn.execute("DROP TABLE IF EXISTS fact_indicator_values")
-    conn.execute("DROP TABLE IF EXISTS dim_indicator")
-    conn.execute("DROP TABLE IF EXISTS dim_source")
-    conn.execute("""
-        CREATE TABLE dim_indicator (
-            indicator_code TEXT PRIMARY KEY,
-            name TEXT,
-            unit TEXT,
-            category TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE dim_source (
-            source_id INTEGER PRIMARY KEY,
-            source_name TEXT,
-            type TEXT,
-            tier TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE fact_indicator_values (
-            id INTEGER PRIMARY KEY,
-            country_code TEXT,
-            city_id TEXT,
-            indicator_code TEXT,
-            scenario_code TEXT,
-            source_id INTEGER,
-            period DATE,
-            period_type TEXT,
-            value REAL,
-            is_forecast BOOLEAN,
-            confidence_low REAL,
-            confidence_high REAL,
-            version INTEGER,
-            FOREIGN KEY (indicator_code) REFERENCES dim_indicator(indicator_code),
-            FOREIGN KEY (source_id) REFERENCES dim_source(source_id)
-        )
-    """)
-    # Inserir dimensões
-    for code, name, unit, cat in INDICATOR_CATALOG:
-        conn.execute("INSERT INTO dim_indicator VALUES (?, ?, ?, ?)", [code, name, unit, cat])
-    for sid, name, typ, tier in SOURCE_CATALOG:
-        conn.execute("INSERT INTO dim_source VALUES (?, ?, ?, ?)", [sid, name, typ, tier])
+def ensure_dims(conn):
+    """Garante que dim_indicator e dim_source existam e estejam preenchidas."""
+    # Verifica se as tabelas existem
+    tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").df()["name"].tolist()
+    if "dim_indicator" not in tables or "dim_source" not in tables:
+        # Recria todas (mas sem dropar fact*)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dim_indicator (
+                indicator_code TEXT PRIMARY KEY,
+                name TEXT,
+                unit TEXT,
+                category TEXT
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dim_source (
+                source_id INTEGER PRIMARY KEY,
+                source_name TEXT,
+                type TEXT,
+                tier TEXT
+            )
+        """)
+        # Popula
+        for code, name, unit, cat in INDICATOR_CATALOG:
+            conn.execute("INSERT OR IGNORE INTO dim_indicator VALUES (?, ?, ?, ?)", [code, name, unit, cat])
+        for sid, name, typ, tier in SOURCE_CATALOG:
+            conn.execute("INSERT OR IGNORE INTO dim_source VALUES (?, ?, ?, ?)", [sid, name, typ, tier])
+    else:
+        # Atualiza se faltar algum
+        for code, name, unit, cat in INDICATOR_CATALOG:
+            conn.execute("INSERT OR IGNORE INTO dim_indicator VALUES (?, ?, ?, ?)", [code, name, unit, cat])
+        for sid, name, typ, tier in SOURCE_CATALOG:
+            conn.execute("INSERT OR IGNORE INTO dim_source VALUES (?, ?, ?, ?)", [sid, name, typ, tier])
 
 def load_processed_file(conn, path: Path, next_id: int) -> int:
     print(f"Carregando {path.name}...")
     df = pd.read_parquet(path)
 
-    # Limpeza
     before = len(df)
     df = df.dropna(subset=["value"])
     if (d := before - len(df)) > 0:
@@ -159,9 +147,13 @@ def load_processed_file(conn, path: Path, next_id: int) -> int:
     return next_id + len(insert_df)
 
 def run():
+    # Inicializa schema (cria tabelas se não existirem, mas não dropar)
+    init_schema()  # assume que init_schema cria as fact_* sem dropar
     with get_connection() as conn:
-        recreate_schema(conn)
-        print("✓ Schema recriado.\n")
+        # Limpa apenas os dados da tabela fact, não a estrutura
+        conn.execute("DELETE FROM fact_indicator_values")
+        print("✓ Dados antigos removidos (fact_indicator_values).\n")
+        ensure_dims(conn)
 
         files = sorted(PROCESSED_DATA_DIR.glob("*.parquet"))
         if not files:
