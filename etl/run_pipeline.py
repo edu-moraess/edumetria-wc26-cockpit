@@ -1,76 +1,99 @@
 """
 etl/run_pipeline.py
-Orquestra o pipeline ETL completo.
+Orquestra o pipeline ETL completo com retry logic básica.
+
+Uso local:
+    python -m etl.run_pipeline
+Uso no Streamlit:
+    Chamado via botão na sidebar (dashboards/app.py)
 """
 
 import sys
+import time
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from etl.extractors import fred                  # noqa: E402
-from etl.extractors import fred_expanded         # noqa: E402
-from etl.extractors import yfinance_markets      # noqa: E402
-from etl.extractors import yfinance_expanded     # noqa: E402
-from etl.extractors import tourism_open_sources  # noqa: E402
-from etl.extractors import statcan_macro         # noqa: E402
-from etl.extractors import inegi                 # noqa: E402
 
-from etl.transformers import clean_macro          # noqa: E402
-from etl.transformers import clean_markets        # noqa: E402
-from etl.transformers import clean_tourism        # noqa: E402
-from etl.transformers import clean_macro_can_mex  # noqa: E402
-from etl.transformers import clean_expanded       # noqa: E402
-
-from etl.loaders import load_indicators           # noqa: E402
+def _safe_run(module, name: str, log=print, retries: int = 2):
+    """Executa module.run() com retry simples (backoff 5s)."""
+    for attempt in range(1, retries + 2):
+        try:
+            module.run()
+            return True
+        except Exception as e:
+            log(f"⚠️  {name} — tentativa {attempt}: {e}")
+            if attempt <= retries:
+                time.sleep(5)
+    log(f"✗  {name} falhou após {retries + 1} tentativas.")
+    return False
 
 
 def run(log=print):
+    # --- Imports dinâmicos (evita falhar no import se lib ausente) ---
+    from etl.extractors import fred
+    from etl.extractors import fred_expanded
+    from etl.extractors import yfinance_markets
+    from etl.extractors import yfinance_expanded
+    from etl.extractors import tourism_open_sources
+    from etl.extractors import statcan_macro
+    from etl.extractors import inegi
+    from etl.extractors import bank_of_canada
+
+    from etl.transformers import clean_macro
+    from etl.transformers import clean_markets
+    from etl.transformers import clean_tourism
+    from etl.transformers import clean_macro_can_mex
+    from etl.transformers import clean_expanded
+    from etl.transformers import clean_bank_of_canada
+
+    from etl.loaders import load_indicators
+
     log("=" * 60)
     log("ETAPA 1/3 — EXTRACTORS")
     log("=" * 60)
 
-    for name, module in [
-        ("FRED",            fred),
-        ("FRED expandido",  fred_expanded),
-        ("yfinance",        yfinance_markets),
-        ("yfinance expandido", yfinance_expanded),
-        ("Turismo",         tourism_open_sources),
-        ("StatCan macro",   statcan_macro),
-        ("INEGI",           inegi),
-    ]:
-        try:
-            module.run()
-        except Exception as e:
-            log(f"⚠️  Extractor {name} falhou: {e}")
+    extractors = [
+        (fred,                   "FRED (macro EUA)"),
+        (fred_expanded,          "FRED Expandido (stress, recessão)"),
+        (yfinance_markets,       "yfinance (índices, ETFs)"),
+        (yfinance_expanded,      "yfinance Expandido (NG, Gold, Nasdaq)"),
+        (tourism_open_sources,   "Turismo (StatCan + Banxico)"),
+        (statcan_macro,          "StatCan Macro"),
+        (inegi,                  "INEGI (México)"),
+        (bank_of_canada,         "Bank of Canada"),
+    ]
 
+    for module, name in extractors:
+        _safe_run(module, name, log)
+
+    log("")
     log("=" * 60)
     log("ETAPA 2/3 — TRANSFORMERS")
     log("=" * 60)
 
-    for name, module in [
-        ("Macro EUA",        clean_macro),
-        ("Markets",          clean_markets),
-        ("Turismo",          clean_tourism),
-        ("Macro CAN/MEX",    clean_macro_can_mex),
-        ("Expandido",        clean_expanded),
-    ]:
-        try:
-            module.run()
-        except Exception as e:
-            log(f"⚠️  Transformer {name} falhou: {e}")
+    transformers = [
+        (clean_macro,          "Macro EUA (FRED)"),
+        (clean_markets,        "Markets (yfinance)"),
+        (clean_tourism,        "Turismo"),
+        (clean_macro_can_mex,  "Macro CAN/MEX"),
+        (clean_expanded,       "Expandido (stress, recessão)"),
+        (clean_bank_of_canada, "Bank of Canada"),
+    ]
 
+    for module, name in transformers:
+        _safe_run(module, name, log)
+
+    log("")
     log("=" * 60)
     log("ETAPA 3/3 — LOADERS")
     log("=" * 60)
 
-    try:
-        load_indicators.run()
-    except Exception as e:
-        log(f"⚠️  Loader falhou: {e}")
+    _safe_run(load_indicators, "Loader principal", log)
 
+    log("")
     log("✅ Pipeline concluído.")
 
 
