@@ -1,30 +1,27 @@
+
 # Edumetria WC26 Cockpit
-### FIFA World Cup 2026™ — Impact Analytics Platform
 
-**Eduardo Moraes · Quant Data Scientist & Economics Researcher · Edumetria**
+**FIFA World Cup 2026™ — Impact Analytics Platform**
 
-[
+**Autor:** Eduardo Moraes  
+**Função:** Quant Data Scientist & Economics Researcher  
+**Organização:** Edumetria  
+**Aplicação:** [edumetriaquant.streamlit.app](https://edumetriaquant.streamlit.app)
 
-![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)
+---
 
-](https://edumetriaquant.streamlit.app)
-
-Plataforma analítica institucional para monitoramento, análise e projeção
-dos impactos macroeconômicos, financeiros, geopolíticos e sociais da
-Copa do Mundo FIFA 2026™ (EUA · Canadá · México), horizonte 2026–2035.
+Plataforma analítica institucional para monitoramento, análise e projeção dos impactos macroeconômicos, financeiros, geopolíticos e sociais da Copa do Mundo FIFA 2026™ (EUA · Canadá · México), horizonte 2026–2035.
 
 ---
 
 ## Dashboard ao vivo
 
-**[edumetriaquant.streamlit.app](https://edumetriaquant.streamlit.app)**
+**URL:** [edumetriaquant.streamlit.app](https://edumetriaquant.streamlit.app)
 
----
-
-## Páginas
+### Páginas
 
 | # | Página | Dados reais | Status |
-|---|--------|------------|--------|
+|---|--------|-------------|--------|
 | 1 | Executive Overview | Turismo CAN/MEX · Snapshot de mercado · WCLI parcial | ✅ |
 | 2 | Macroeconomia | FRED: PIB, CPI, Juros, Desemprego, Yield Spread EUA | ✅ |
 | 3 | Turismo | StatCan (Canadá) · Banxico (México) | ✅ |
@@ -43,30 +40,30 @@ Copa do Mundo FIFA 2026™ (EUA · Canadá · México), horizonte 2026–2035.
 ### Ativas (funcionando hoje)
 
 | Fonte | Cobertura | Token necessário |
-|-------|-----------|-----------------|
-| **FRED** (Federal Reserve) | Macro EUA: PIB, CPI, juros, desemprego, Treasuries, Sahm Rule, Leading Index, HY Spread, MOVE Index, SOFR | **Sim** (grátis, instantâneo) |
-| **Yahoo Finance** (yfinance) | Índices (S&P500, TSX, IPC), ETFs, WTI, Brent, VIX, Gás Natural, Ouro, Nasdaq | Não |
-| **Statistics Canada** (StatCan) | Chegadas turísticas internacionais ao Canadá | Não |
-| **Banxico SIE** | Chegadas turísticas ao México | **Sim** (grátis, instantâneo) |
-| **Bank of Canada** (Valet API) | Taxa overnight, CPI, câmbio CAD/USD, desemprego Canadá | Não |
+|-------|-----------|------------------|
+| FRED (Federal Reserve) | Macro EUA: PIB, CPI, juros, desemprego, Treasuries, Sahm Rule, Leading Index, HY Spread, MOVE Index, SOFR | Sim (grátis, instantâneo) |
+| Yahoo Finance (yfinance) | Índices (S&P500, TSX, IPC), ETFs, WTI, Brent, VIX, Gás Natural, Ouro, Nasdaq | Não |
+| Statistics Canada (StatCan) | Chegadas turísticas internacionais ao Canadá | Não |
+| Banxico SIE | Chegadas turísticas ao México | Sim (grátis, instantâneo) |
+| Bank of Canada (Valet API) | Taxa overnight, CPI, câmbio CAD/USD, desemprego Canadá | Não |
 
 ### Prontas para ativar (sem token adicional)
 
 | Fonte | Cobertura | Status |
 |-------|-----------|--------|
-| **World Bank API** | Macro histórico 2000-2024 · Turismo Copa anteriores · Países controle DiD | Extractor pronto — integrar ao pipeline |
-| **INEGI** | Macro México: PIB, CPI, desemprego | Extractor pronto — requer token INEGI |
+| World Bank API | Macro histórico 2000-2024 · Turismo Copas anteriores · Países controle DiD | Extractor pronto — integrar ao pipeline |
+| INEGI | Macro México: PIB, CPI, desemprego | Extractor pronto — requer token INEGI |
 
 ### Futuras (pós-MVP)
 
 | Fonte | Cobertura | Observação |
 |-------|-----------|------------|
-| **GPR Index** (Caldara & Iacoviello) | Risco geopolítico global — componente Geopolítico do Risk Score 2.0 | Download manual em matteoiacoviello.com/gpr.htm |
-| **US NTTO** | Turismo EUA | Download manual em trade.gov/national-travel-tourism-office |
-| **STR Global** | Hotelaria: ADR, RevPAR, Ocupação | Pago (B2B) |
-| **OAG / IATA** | Aviação: rotas, assentos, passageiros | Pago (B2B) |
-| **IMF Data API** | Macro multilateral | Sem token, endpoints em validação |
-| **OECD API** | Macro países OCDE | Sem token, endpoints em validação |
+| GPR Index (Caldara & Iacoviello) | Risco geopolítico global — componente Geopolítico do Risk Score 2.0 | Download manual em matteoiacoviello.com/gpr.htm |
+| US NTTO | Turismo EUA | Download manual em trade.gov/national-travel-tourism-office |
+| STR Global | Hotelaria: ADR, RevPAR, Ocupação | Pago (B2B) |
+| OAG / IATA | Aviação: rotas, assentos, passageiros | Pago (B2B) |
+| IMF Data API | Macro multilateral | Sem token, endpoints em validação |
+| OECD API | Macro países OCDE | Sem token, endpoints em validação |
 
 ---
 
@@ -74,10 +71,10 @@ Copa do Mundo FIFA 2026™ (EUA · Canadá · México), horizonte 2026–2035.
 
 ### Risk Score 2.0 (0–100)
 Framework multicamadas com 4 dimensões:
-- **Financeira (35%)**: VIX, MOVE Index, HY Spread, SOFR
-- **Energética (25%)**: WTI, Brent, Gás Natural (desvio vs. média 252d)
-- **Macroeconômica (25%)**: Yield Spread 10Y-2Y, 10Y-3M, Leading Index
-- **Geopolítica (15%)**: GPR Index — pendente de integração manual
+- **Financeira (35%):** VIX, MOVE Index, HY Spread, SOFR
+- **Energética (25%):** WTI, Brent, Gás Natural (desvio vs. média 252d)
+- **Macroeconômica (25%):** Yield Spread 10Y-2Y, 10Y-3M, Leading Index
+- **Geopolítica (15%):** GPR Index — pendente de integração manual
 
 ### Recession Monitor
 Score composto de probabilidade de recessão (0–100):
@@ -94,7 +91,7 @@ Score composto de probabilidade de recessão (0–100):
 - Demais componentes dependem de modelagem econométrica (fase pós-MVP)
 
 ### Monte Carlo 2.0 (20.000 simulações)
-- Distribuição **Student-t** (fat tails) — ajuste por MLE
+- Distribuição Student-t (fat tails) — ajuste por MLE
 - Fallback automático para Normal se MLE falhar
 - Horizonte 2027–2035
 - Percentis P05, P25, P50, P75, P95
@@ -103,86 +100,78 @@ Score composto de probabilidade de recessão (0–100):
 
 ## Arquitetura
 
+```
+
 edumetria-wc26-cockpit/
-│
-├── config.py               # tema quant, baseline FIFA, WCLI, paleta
-├── config_secrets.py       # st.secrets ↔ os.getenv (local + Streamlit Cloud)
+├── config.py                  # tema quant, baseline FIFA, WCLI, paleta
+├── config_secrets.py          # st.secrets ↔ os.getenv (local + Streamlit Cloud)
 ├── requirements.txt
-│
 ├── data/
-│   ├── raw/                # snapshots imutáveis (CSV por data, nunca editados)
-│   ├── processed/          # parquets normalizados prontos para o banco
-│   └── external/           # datasets manuais (GPR, NTTO, etc.)
-│       ├── ntto_usa/       # turismo EUA — download manual
-│       └── gpr/            # GPR Index — download manual
-│
+│   ├── raw/                   # snapshots imutáveis (CSV por data, nunca editados)
+│   ├── processed/             # parquets normalizados prontos para o banco
+│   └── external/              # datasets manuais (GPR, NTTO, etc.)
+│       ├── ntto_usa/          # turismo EUA — download manual
+│       └── gpr/               # GPR Index — download manual
 ├── database/
-│   ├── schema.sql          # star schema (dim_* + fact_*)
-│   └── connection.py       # DuckDB (dev) / Postgres (prod)
-│
+│   ├── schema.sql             # star schema (dim_* + fact_*)
+│   └── connection.py          # DuckDB (dev) / Postgres (prod)
 ├── etl/
 │   ├── extractors/
-│   │   ├── fred.py                  # macro EUA (PIB, CPI, juros, Treasuries)
-│   │   ├── fred_expanded.py         # SOFR, MOVE, Sahm Rule, Leading Index, HY Spread
-│   │   ├── yfinance_markets.py      # índices, ETFs, WTI, Brent, VIX
-│   │   ├── yfinance_expanded.py     # Natural Gas, Gold, Nasdaq, Russell
-│   │   ├── tourism_open_sources.py  # StatCan (turismo CAN) + Banxico (turismo MEX)
-│   │   ├── statcan_macro.py         # macro Canadá via StatCan
-│   │   ├── bank_of_canada.py        # BoC Valet API (sem token)
-│   │   ├── inegi.py                 # macro México (requer INEGI_TOKEN)
-│   │   └── world_bank.py            # histórico Copa anteriores + países controle DiD
-│   │
+│   │   ├── fred.py            # macro EUA (PIB, CPI, juros, Treasuries)
+│   │   ├── fred_expanded.py   # SOFR, MOVE, Sahm Rule, Leading Index, HY Spread
+│   │   ├── yfinance_markets.py # índices, ETFs, WTI, Brent, VIX
+│   │   ├── yfinance_expanded.py # Natural Gas, Gold, Nasdaq, Russell
+│   │   ├── tourism_open_sources.py # StatCan (turismo CAN) + Banxico (turismo MEX)
+│   │   ├── statcan_macro.py   # macro Canadá via StatCan
+│   │   ├── bank_of_canada.py  # BoC Valet API (sem token)
+│   │   ├── inegi.py           # macro México (requer INEGI_TOKEN)
+│   │   └── world_bank.py      # histórico Copas anteriores + países controle DiD
 │   ├── transformers/
-│   │   ├── clean_macro.py           # FRED → tidy + Yield Spread 10Y-2Y derivado
-│   │   ├── clean_markets.py         # yfinance → tidy
-│   │   ├── clean_tourism.py         # StatCan + Banxico → tidy
-│   │   ├── clean_macro_can_mex.py   # StatCan macro + INEGI → tidy
-│   │   ├── clean_bank_of_canada.py  # BoC → tidy
-│   │   └── clean_expanded.py        # FRED expanded + yfinance expanded → tidy
-│   │                                  + Yield Spread 10Y-3M derivado
+│   │   ├── clean_macro.py     # FRED → tidy + Yield Spread 10Y-2Y derivado
+│   │   ├── clean_markets.py   # yfinance → tidy
+│   │   ├── clean_tourism.py   # StatCan + Banxico → tidy
+│   │   ├── clean_macro_can_mex.py # StatCan macro + INEGI → tidy
+│   │   ├── clean_bank_of_canada.py # BoC → tidy
+│   │   └── clean_expanded.py  # FRED expanded + yfinance expanded → tidy + Yield Spread 10Y-3M
 │   ├── loaders/
-│   │   └── load_indicators.py       # truncate + reload em fact_indicator_values
-│   │
-│   └── run_pipeline.py              # orquestrador com retry (2 tentativas + backoff 5s)
-│
+│   │   └── load_indicators.py # truncate + reload em fact_indicator_values
+│   └── run_pipeline.py        # orquestrador com retry (2 tentativas + backoff 5s)
 ├── models/
-│   ├── econometric/                 # DiD, Synthetic Control (fase pós-MVP)
-│   ├── ml/                          # XGBoost, LightGBM, Prophet, LSTM (fase pós-MVP)
+│   ├── econometric/           # DiD, Synthetic Control (fase pós-MVP)
+│   ├── ml/                    # XGBoost, LightGBM, Prophet, LSTM (fase pós-MVP)
 │   └── montecarlo/
-│       ├── simulation_engine.py     # Monte Carlo 2.0 (Student-t)
-│       ├── wcli_calculator.py       # WCLI por país/cenário
-│       ├── risk_score_v2.py         # World Cup Risk Score 2.0 (4 dimensões)
-│       ├── recession_monitor.py     # Recession Monitor (5 indicadores)
-│       └── fifa_auditor.py          # auditoria estrutural das projeções FIFA
-│
+│       ├── simulation_engine.py  # Monte Carlo 2.0 (Student-t)
+│       ├── wcli_calculator.py    # WCLI por país/cenário
+│       ├── risk_score_v2.py      # World Cup Risk Score 2.0 (4 dimensões)
+│       ├── recession_monitor.py  # Recession Monitor (5 indicadores)
+│       └── fifa_auditor.py       # auditoria estrutural das projeções FIFA
 ├── metadata/
-│   └── data_dictionary.py           # catálogo completo de indicadores
-│
+│   └── data_dictionary.py     # catálogo completo de indicadores
 ├── dashboards/
-│   ├── app.py                       # entry point (tema quant, ETL, navegação)
-│   ├── components.py                # KPI cards, apply_theme() subplot-safe
+│   ├── app.py                 # entry point (tema quant, ETL, navegação)
+│   ├── components.py          # KPI cards, apply_theme() subplot-safe
 │   └── pages/
 │       ├── 01_executive_overview.py
-│       ├── 02_macroeconomia.py      # FRED: PIB, CPI, Juros, Yield Spread
-│       ├── 03_turismo.py            # StatCan + Banxico
-│       ├── 04_aviacao.py            # WTI como proxy
-│       ├── 05_hotelaria.py          # placeholder documentado
-│       ├── 06_mercado_financeiro.py # yfinance: drawdown, correlação, vol.
-│       ├── 07_geopolitica.py        # Risk Score 2.0 + energia (eixo duplo)
-│       ├── 08_esg.py                # placeholder documentado
-│       ├── 09_forecast_center.py    # Monte Carlo 2.0
-│       └── 10_recession_monitor.py  # Sahm + Spreads + Leading + Fed NY
-│
+│       ├── 02_macroeconomia.py
+│       ├── 03_turismo.py
+│       ├── 04_aviacao.py
+│       ├── 05_hotelaria.py
+│       ├── 06_mercado_financeiro.py
+│       ├── 07_geopolitica.py
+│       ├── 08_esg.py
+│       ├── 09_forecast_center.py
+│       └── 10_recession_monitor.py
 ├── deployment/
 │   ├── docker/
 │   │   ├── Dockerfile
 │   │   └── docker-compose.yml
 │   └── streamlit_cloud/
-│       ├── config.toml              # tema dark (copiar para .streamlit/config.toml)
-│       ├── DEPLOY.md                # guia de deploy
-│       └── SECRETS_TEMPLATE.toml   # template de Secrets para Streamlit Cloud
-│
-└── tests/                           # pytest (em desenvolvimento)
+│       ├── config.toml        # tema dark
+│       ├── DEPLOY.md
+│       └── SECRETS_TEMPLATE.toml
+└── tests/                     # pytest (em desenvolvimento)
+
+```
 
 ---
 
@@ -204,110 +193,100 @@ python -m etl.run_pipeline
 
 # 5. Iniciar o dashboard
 streamlit run dashboards/app.py
+```
+
+---
 
 Deploy no Streamlit Cloud
-Fork/clone este repositório no GitHub
-Em share.streamlit.io: apontar para dashboards/app.py
-Copiar deployment/streamlit_cloud/config.toml para .streamlit/config.toml na raiz
-Em Settings → Secrets, colar o conteúdo de SECRETS_TEMPLATE.toml preenchido
-Clicar "↺ Atualizar dados" na sidebar do app para popular o banco
-Nota sobre persistência: o DuckDB no Streamlit Cloud é efêmero — os dados
-somem a cada restart do app. Clique "Atualizar dados" sempre que necessário.
-Para persistência real entre sessões: migrar para Postgres gerenciado
-(Supabase ou Neon — ambos têm free tier suficiente para este projeto).
+
+1. Fork/clone este repositório no GitHub
+2. Em share.streamlit.io: apontar para dashboards/app.py
+3. Copiar deployment/streamlit_cloud/config.toml para .streamlit/config.toml na raiz
+4. Em Settings → Secrets, colar o conteúdo de SECRETS_TEMPLATE.toml preenchido
+5. Clicar "↺ Atualizar dados" na sidebar do app para popular o banco
+
+Nota sobre persistência: o DuckDB no Streamlit Cloud é efêmero — os dados somem a cada restart do app. Clique "Atualizar dados" sempre que necessário. Para persistência real entre sessões: migrar para Postgres gerenciado (Supabase ou Neon — ambos têm free tier suficiente para este projeto).
+
+---
+
 Sobre o botão "↺ Atualizar dados"
+
 O botão executa etl/run_pipeline.py que:
-Extrai dados frescos de todas as APIs configuradas (com retry automático)
-Transforma e normaliza para formato tidy (parquet)
-Limpa fact_indicator_values (DELETE) e recarrega do zero
-O banco não cresce indefinidamente — cada execução resulta no mesmo
-volume de dados (truncate + reload). Tempo estimado: 60-120 segundos.
+
+· Extrai dados frescos de todas as APIs configuradas (com retry automático)
+· Transforma e normaliza para formato tidy (parquet)
+· Limpa fact_indicator_values (DELETE) e recarrega do zero
+· O banco não cresce indefinidamente — cada execução resulta no mesmo volume de dados (truncate + reload).
+· Tempo estimado: 60-120 segundos.
+
+---
+
 Princípios do projeto
-Transparência total: todo placeholder é explicitamente marcado com
-explicação do que falta e por quê
-Separação rigorosa: evidência empírica ≠ narrativa promocional ≠ projeção
-Auditabilidade: toda série documentada em metadata/data_dictionary.py
-Honestidade sobre limitações: o WCLI mostra "completeness %",
-o Risk Score mostra componentes excluídos e motivo
-Referências bibliográficas: Sahm (2019), Estrella & Mishkin (1998),
-Caldara & Iacoviello (2022), McNeil et al. (2015) — metodologia rastreável
+
+· Transparência total: todo placeholder é explicitamente marcado com explicação do que falta e por quê
+· Separação rigorosa: evidência empírica ≠ narrativa promocional ≠ projeção
+· Auditabilidade: toda série documentada em metadata/data_dictionary.py
+· Honestidade sobre limitações: o WCLI mostra "completeness %", o Risk Score mostra componentes excluídos e motivo
+· Referências bibliográficas: Sahm (2019), Estrella & Mishkin (1998), Caldara & Iacoviello (2022), McNeil et al. (2015) — metodologia rastreável
+
+---
+
 Bugs conhecidos e status
-#
-Bug
-Severidade
-Status
-1
-TED Spread descontinuado jan/2023
-Alta
-✅ Corrigido → SOFR
-2
-MOVE Index instável no yfinance
-Alta
-✅ Corrigido → FRED BAMLMOVE1WMPIM156
-3
-Vector StatCan turismo (v1) incorreto
-Alta
-✅ Corrigido → vector 62370949
-4
-Natural Gas no mesmo eixo Y do petróleo
-Média
-✅ Corrigido → eixo Y duplo
-5
-Duplicação yield curve páginas 02 e 07
-Média
-✅ Corrigido → separação conceitual
-6
-Pipeline sem retry logic
-Média
-✅ Corrigido → retry 2x + backoff 5s
-7
-Banco crescia a cada atualização
-Alta
-✅ Corrigido → truncate + reload
-8
-yfinance MultiIndex columns (v0.2.40+)
-Média
-✅ Corrigido
-9
-tests/ vazia
-Média
-⏳ Pendente
+
+# Bug Severidade Status
+1 TED Spread descontinuado jan/2023 Alta ✅ Corrigido → SOFR
+2 MOVE Index instável no yfinance Alta ✅ Corrigido → FRED BAMLMOVE1WMPIM156
+3 Vector StatCan turismo (v1) incorreto Alta ✅ Corrigido → vector 62370949
+4 Natural Gas no mesmo eixo Y do petróleo Média ✅ Corrigido → eixo Y duplo
+5 Duplicação yield curve páginas 02 e 07 Média ✅ Corrigido → separação conceitual
+6 Pipeline sem retry logic Média ✅ Corrigido → retry 2x + backoff 5s
+7 Banco crescia a cada atualização Alta ✅ Corrigido → truncate + reload
+8 yfinance MultiIndex columns (v0.2.40+) Média ✅ Corrigido
+9 tests/ vazia Média ⏳ Pendente
+
+---
 
 Roadmap — próximas fases
-Módulo
-Prioridade
-Complexidade
-GPR Index (Caldara & Iacoviello) — download manual
-Alta
-Baixa
-World Bank API — integrar ao pipeline
-Alta
-Baixa
-DiD / Synthetic Control (contrafactual)
-Alta
-Alta
-WCLI completo (todos os componentes)
-Alta
-Média
-Turismo EUA (NTTO) — download manual
-Média
-Baixa
-Event Study histórico (Copas 2006-2022)
-Média
-Média
-GitHub Actions cron (ETL diário automático)
-Média
-Baixa
-Postgres gerenciado (persistência real)
-Média
-Média
-Testes unitários (pytest)
-Média
-Baixa
-ML Ensemble (XGBoost/LightGBM/Prophet/LSTM)
-Baixa
-Alta
-API FastAPI
-Baixa
-Média
+
+Módulo Prioridade Complexidade
+GPR Index (Caldara & Iacoviello) — download manual Alta Baixa
+World Bank API — integrar ao pipeline Alta Baixa
+DiD / Synthetic Control (contrafactual) Alta Alta
+WCLI completo (todos os componentes) Alta Média
+Turismo EUA (NTTO) — download manual Média Baixa
+Event Study histórico (Copas 2006-2022) Média Média
+GitHub Actions cron (ETL diário automático) Média Baixa
+Postgres gerenciado (persistência real) Média Média
+Testes unitários (pytest) Média Baixa
+ML Ensemble (XGBoost/LightGBM/Prophet/LSTM) Baixa Alta
+API FastAPI Baixa Média
+
+---
+
+Licença
+
+MIT License
+
+Copyright (c) 2026 Eduardo Moraes · Edumetria
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
 Edumetria · Eduardo Moraes · 2026
