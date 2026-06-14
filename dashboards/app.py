@@ -188,8 +188,8 @@ st.sidebar.markdown(
 # SIDEBAR — BOTÃO ETL
 # ------------------------------------------------------------------
 st.sidebar.markdown(
-    f"<div style='font-family:{THEME['font_family']}; font-size:0.65rem; "
-    f"color:{THEME['secondary']}; text-transform:uppercase; "
+    f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.65rem; "
+    f"color:{THEME[\"secondary\"]}; text-transform:uppercase; "
     f"letter-spacing:0.10em; margin-bottom:0.5rem;'>Pipeline ETL</div>",
     unsafe_allow_html=True,
 )
@@ -222,20 +222,20 @@ try:
         ).df()["n"][0]
     if count > 0:
         st.sidebar.markdown(
-            f"<div style='font-family:{THEME['font_family']}; font-size:0.68rem; "
-            f"color:{THEME['positive']};'>✓ {count:,} registros</div>",
+            f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
+            f"color:{THEME[\"positive\"]};'>✓ {count:,} registros</div>",
             unsafe_allow_html=True,
         )
     else:
         st.sidebar.markdown(
-            f"<div style='font-family:{THEME['font_family']}; font-size:0.68rem; "
-            f"color:{THEME['warning']};'>⚠ Banco vazio — atualizar dados</div>",
+            f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
+            f"color:{THEME[\"warning\"]};'>⚠ Banco vazio — atualizar dados</div>",
             unsafe_allow_html=True,
         )
 except Exception:
     st.sidebar.markdown(
-        f"<div style='font-family:{THEME['font_family']}; font-size:0.68rem; "
-        f"color:{THEME['negative']};'>✗ Banco não inicializado</div>",
+        f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
+        f"color:{THEME[\"negative\"]};'>✗ Banco não inicializado</div>",
         unsafe_allow_html=True,
     )
 
