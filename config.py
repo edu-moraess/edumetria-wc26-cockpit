@@ -111,42 +111,27 @@ SCENARIOS = ["conservador", "base", "otimista", "estresse"]
 # ------------------------------------------------------------------
 # IDENTIDADE VISUAL — QUANT INSTITUTIONAL GRADE
 #
-# Paleta inspirada em terminais Bloomberg/Refinitiv e relatórios de
-# quant research de Goldman Sachs, Two Sigma, AQR:
-# - Fundo quase preto (não puro — reduz fadiga visual)
-# - Surface levemente azulado (profundidade)
-# - Accent: azul elétrico frio (não dourado) — padrão quant research
-# - Texto: branco frio, não amarelado
-# - Grid: quase invisível (cinza muito escuro)
-# - Série primária: azul cobalto (#4C8BF5 — Google Blue, legível em dark)
-# - Série secundária: ciano frio (#00C8FF — Refinitiv style)
-# - Série terciária: âmbar frio (#FFB300 — acento quente controlado)
-# - Positivo: verde menta frio (#00D4AA)
-# - Negativo: vermelho coral frio (#FF4560)
-# - Banda de confiança: azul translúcido (rgba do accent)
+# Paleta ajustada para layout claro, minimalista e limpo
 # ------------------------------------------------------------------
 THEME = {
-    "background": "#0A0E1A",       # quase preto, toque azulado
-    "surface": "#111827",          # surface cards — cinza azulado escuro
-    "surface_alt": "#1A2235",      # surface alternativo (hover, expander)
-    "border": "#1E2D45",           # borda sutil azul-escura
+    "background": "#FFFFFF",       # branco puro
+    "surface": "#F8FAFC",          # surface cards — cinza ultraclaro
+    "surface_alt": "#F1F5F9",      # surface alternativo
+    "border": "#E2E8F0",           # borda sutil
     "primary": "#4C8BF5",          # azul cobalto — série principal
     "accent": "#00C8FF",           # ciano frio — série secundária
     "accent_warm": "#FFB300",      # âmbar controlado — destaque/alerta
-    "secondary": "#6B7A99",        # texto secundário — cinza azulado
-    "text": "#E2E8F0",             # texto principal — branco frio
-    "text_muted": "#4A5568",       # texto desabilitado
+    "secondary": "#64748B",        # texto secundário
+    "text": "#0F172A",             # texto principal — escuro
+    "text_muted": "#94A3B8",       # texto desabilitado
     "positive": "#00D4AA",         # verde menta frio
     "negative": "#FF4560",         # vermelho coral frio
     "neutral": "#4C8BF5",          # neutro = primary
     "warning": "#FFB300",          # alerta = accent_warm
-    "grid": "#1A2235",             # grid quase invisível
+    "grid": "#F1F5F9",             # grid estrutural
     "font_family": "'IBM Plex Mono', 'Roboto Mono', 'Courier New', monospace",
-    # fonte monospace — padrão em terminais quant (Bloomberg, QuantConnect)
 }
 
-# Paleta de séries múltiplas — ordem de uso em gráficos multi-linha
-# Inspirada em paletas de quant research (sem cores quentes excessivas)
 SERIES_PALETTE = [
     "#4C8BF5",   # azul cobalto (primary)
     "#00C8FF",   # ciano frio
@@ -159,7 +144,7 @@ SERIES_PALETTE = [
 ]
 
 PLOTLY_BASE = {
-    "template": "plotly_dark",
+    "template": "plotly_white",
     "paper_bgcolor": THEME["background"],
     "plot_bgcolor": THEME["surface"],
     "font": {
