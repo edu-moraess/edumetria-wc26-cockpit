@@ -340,3 +340,23 @@ Aviso Legal
 
 FIFA World Cup 2026™ é uma marca registrada da FIFA.
 Este projeto é uma iniciativa acadêmica e analítica independente e não é afiliado, endossado ou patrocinado pela FIFA.
+
+---
+
+Licença
+
+© 2026 Eduardo Moraes. Todos os direitos reservados.
+
+Código de infraestrutura, pipelines de dados e dashboards
+O código-fonte referente à infraestrutura de dados, pipelines de extração/transformação/carga (ETL), dashboards de visualização e utilitários de configuração é disponibilizado sob a Licença MIT, permitindo uso, modificação e distribuição desde que mantida a atribuição ao autor original.
+
+Copyright (c) 2026 Eduardo Moraes
+
+É concedida permissão, gratuitamente, a qualquer pessoa que obtenha uma cópia deste software e dos arquivos de documentação associados (o "Software"), para lidar com o Software sem restrições, incluindo, sem limitação, os direitos de usar, copiar, modificar, mesclar, publicar, distribuir, sublicenciar e/ou vender cópias do Software, e permitir que as pessoas a quem o Software é fornecido o façam, sujeito às seguintes condições:
+
+O aviso de copyright acima e este aviso de permissão devem ser incluídos em todas as cópias ou partes substanciais do Software.
+
+O SOFTWARE É FORNECIDO "NO ESTADO EM QUE SE ENCONTRA", SEM GARANTIA DE QUALQUER TIPO, EXPRESSA OU IMPLÍCITA, INCLUINDO, MAS NÃO SE LIMITANDO A, GARANTIAS DE COMERCIABILIDADE, ADEQUAÇÃO A UM DETERMINADO FIM E NÃO VIOLAÇÃO. EM NENHUM CASO OS AUTORES OU DETENTORES DOS DIREITOS AUTORAIS SERÃO RESPONSÁVEIS POR QUALQUER REIVINDICAÇÃO, DANO OU OUTRA RESPONSABILIDADE, SEJA EM UMA AÇÃO DE CONTRATO, ATO ILÍCITO OU DE OUTRA FORMA, DECORRENTE DE, FORA DE OU EM CONEXÃO COM O SOFTWARE OU O USO OU OUTRAS NEGOCIAÇÕES NO SOFTWARE.
+
+Modelos proprietários
+Os modelos analíticos proprietários — incluindo, mas não se limitando a, o World Cup Risk Score (WCRS), o World Cup Legacy Index (WCLI) e o motor de previsão de Monte Carlo — são protegidos por direitos autorais. Sua reprodução, adaptação, engenharia reversa ou utilização em qualquer forma requer autorização prévia e expressa por escrito do autor. O acesso público ao dashboard analítico não confere qualquer direito sobre esses modelos.
