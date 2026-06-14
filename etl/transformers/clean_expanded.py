@@ -1,12 +1,11 @@
 """
 etl/transformers/clean_expanded.py
-Normaliza os dados do FRED expandido e yfinance expandido para o
-formato tidy — mesmo padrão dos outros transformers.
+Normaliza dados expandidos (FRED + yfinance expandido) para formato tidy.
 
-Calcula indicadores derivados:
-- YIELD_SPREAD_10Y3M = Treasury 10Y - Treasury 3M (curva alternativa)
-- RECESSION_COMPOSITE = score simples combinando Sahm Rule +
-  Leading Index + Yield Spreads (heurística, documentada)
+CORREÇÕES v2:
+- SOFR substitui TED Spread (descontinuado)
+- MOVE Index via FRED (BAMLMOVE1WMPIM156) substitui ^MOVE (yfinance instável)
+- Yield Spread 10Y-3M calculado corretamente
 """
 
 import sys
@@ -22,25 +21,27 @@ if str(ROOT_DIR) not in sys.path:
 from config import RAW_DATA_DIR, PROCESSED_DATA_DIR  # noqa: E402
 
 FRED_INDICATOR_MAP = {
-    "treasury_3m":           "TREASURY_3M",
-    "sahm_rule_realtime":    "SAHM_RULE",
-    "leading_index_usa":     "LEADING_INDEX",
-    "recession_prob_usa":    "RECESSION_PROB",
-    "ted_spread":            "TED_SPREAD",
-    "hy_spread":             "HY_SPREAD",
-    "debt_to_gdp_usa":       "DEBT_TO_GDP",
-    "fiscal_deficit_usa":    "FISCAL_DEFICIT",
-    "labor_participation_usa": "LABOR_PARTICIPATION",
-    "avg_hourly_earnings_usa": "AVG_HOURLY_EARNINGS",
+    "treasury_3m":              "TREASURY_3M",
+    "sahm_rule_realtime":       "SAHM_RULE",
+    "leading_index_usa":        "LEADING_INDEX",
+    "recession_prob_usa":       "RECESSION_PROB",
+    "sofr_rate":                "SOFR_RATE",
+    "hy_spread":                "HY_SPREAD",
+    "move_index_fred":          "MOVE_INDEX",
+    "debt_to_gdp_usa":          "DEBT_TO_GDP",
+    "fiscal_deficit_usa":       "FISCAL_DEFICIT",
+    "labor_participation_usa":  "LABOR_PARTICIPATION",
+    "avg_hourly_earnings_usa":  "AVG_HOURLY_EARNINGS",
+    "consumer_sentiment_umich": "CONSUMER_SENTIMENT",
+    "retail_sales_usa":         "RETAIL_SALES",
 }
 
 YFINANCE_INDICATOR_MAP = {
-    "natural_gas_futures":    ("NATURAL_GAS", None),
-    "move_index_bond_vol":    ("MOVE_INDEX",  None),
-    "nasdaq_composite":       ("NASDAQ",      "USA"),
-    "russell_2000":           ("RUSSELL2000", "USA"),
-    "treasury_10y_yield_yf":  ("TREASURY_10Y_YF", "USA"),
-    "gold_futures":           ("GOLD",        None),
+    "natural_gas_futures":   ("NATURAL_GAS",      None),
+    "nasdaq_composite":      ("NASDAQ",            "USA"),
+    "russell_2000":          ("RUSSELL2000",       "USA"),
+    "gold_futures":          ("GOLD",              None),
+    "treasury_10y_yield_yf": ("TREASURY_10Y_YF",  "USA"),
 }
 
 
@@ -71,11 +72,9 @@ def run() -> pd.DataFrame:
             "is_forecast":    False,
         })
         frames.append(fred_out)
+        print(f"  → {len(fred_out)} linhas FRED expandido")
 
-        # Yield Spread 10Y-3M
-        t10 = fred_out[fred_out["indicator_code"] == "TREASURY_10Y_YF"] if False else None
-
-        # Usa TREASURY_10Y do macro_usa.parquet se existir
+        # Yield Spread 10Y-3M derivado
         macro_path = PROCESSED_DATA_DIR / "macro_usa.parquet"
         if macro_path.exists():
             macro = pd.read_parquet(macro_path)
@@ -83,15 +82,18 @@ def run() -> pd.DataFrame:
             t3m = fred_out[fred_out["indicator_code"] == "TREASURY_3M"].set_index("period")["value"]
 
             if not t10.empty and not t3m.empty:
-                spread_10y3m = (t10 - t3m).dropna().reset_index()
-                spread_10y3m.columns = ["period", "value"]
-                spread_10y3m["country_code"]   = "USA"
-                spread_10y3m["indicator_code"] = "YIELD_SPREAD_10Y3M"
-                spread_10y3m["period_type"]    = "monthly"
-                spread_10y3m["source_name"]    = "FRED"
-                spread_10y3m["is_forecast"]    = False
-                frames.append(spread_10y3m)
-                print(f"  → Yield Spread 10Y-3M calculado: {len(spread_10y3m)} obs.")
+                # Alinha no mesmo índice mensal
+                t10_m = t10.resample("MS").last()
+                t3m_m = t3m.resample("MS").last()
+                spread = (t10_m - t3m_m).dropna().reset_index()
+                spread.columns = ["period", "value"]
+                spread["country_code"]   = "USA"
+                spread["indicator_code"] = "YIELD_SPREAD_10Y3M"
+                spread["period_type"]    = "monthly"
+                spread["source_name"]    = "FRED"
+                spread["is_forecast"]    = False
+                frames.append(spread)
+                print(f"  → {len(spread)} obs. Yield Spread 10Y-3M calculado")
     else:
         print("⚠️  fred_expanded_usa_*.csv não encontrado.")
 
@@ -116,7 +118,9 @@ def run() -> pd.DataFrame:
                 "is_forecast":    False,
             }))
         if rows:
-            frames.append(pd.concat(rows, ignore_index=True))
+            yf_out = pd.concat(rows, ignore_index=True)
+            frames.append(yf_out)
+            print(f"  → {len(yf_out)} linhas yfinance expandido")
     else:
         print("⚠️  yfinance_expanded_*.csv não encontrado.")
 
@@ -129,7 +133,7 @@ def run() -> pd.DataFrame:
 
     out_path = PROCESSED_DATA_DIR / "expanded_indicators.parquet"
     out.to_parquet(out_path, index=False)
-    print(f"Salvo: {out_path} ({len(out)} linhas)")
+    print(f"\nSalvo: {out_path} ({len(out):,} linhas)")
     return out
 
 
