@@ -1,206 +1,179 @@
 Edumetria WC26 Cockpit
-
-FIFA World Cup 2026™ Economic, Financial & Geopolitical Analytics Platform
+Plataforma de Análise Econômica, Financeira e Geopolítica da Copa do Mundo FIFA 2026™
 
 Eduardo Moraes
-Quantitative Data Scientist · Economics Researcher · Systems & Control Engineering Student
-
-""Streamlit App" (https://static.streamlit.io/badges/streamlit_badge_black_white.svg)" (https://edumetriaquant.streamlit.app)
+Cientista de Dados Quantitativos · Pesquisador em Economia · Estudante de Engenharia de Sistemas e Controle
 
 ---
 
-Executive Summary
+Sumário Executivo
 
-The Edumetria WC26 Cockpit is a quantitative analytics platform designed to monitor, analyze and project the potential economic, financial, geopolitical and sectoral impacts associated with the FIFA World Cup 2026™, hosted by the United States, Canada and Mexico.
+O Edumetria WC26 Cockpit é uma plataforma de análise quantitativa projetada para monitorar, analisar e projetar os potenciais impactos econômicos, financeiros, geopolíticos e setoriais associados à Copa do Mundo FIFA 2026™, sediada por Estados Unidos, Canadá e México.
 
-The platform integrates public datasets from central banks, national statistical agencies and global financial markets to build proprietary indicators, risk monitoring frameworks and forward-looking economic scenarios.
+A plataforma integra bases de dados públicas de bancos centrais, agências nacionais de estatística e mercados financeiros globais para construir indicadores proprietários, estruturas de monitoramento de riscos e cenários econômicos prospectivos.
 
-The project combines:
+O projeto combina:
 
-- Data Engineering
-- Quantitative Analytics
-- Applied Economics
-- Risk Modeling
-- Forecasting
-- Data Visualization
+· Engenharia de Dados
+· Análise Quantitativa
+· Economia Aplicada
+· Modelagem de Riscos
+· Projeções (Forecasting)
+· Visualização de Dados
 
-within a fully reproducible analytical environment.
+em um ambiente analítico totalmente reprodutível.
 
-Analysis Horizon: 2026–2035
-
----
-
-Research Motivation
-
-Mega sporting events are often associated with expectations regarding:
-
-- Economic growth
-- Tourism expansion
-- Infrastructure development
-- Labor market effects
-- Foreign investment attraction
-- Long-term economic legacy
-
-However, empirical evidence frequently shows mixed results.
-
-The purpose of this project is to provide a transparent and reproducible framework for analyzing these potential impacts using real-world data, quantitative methods and clearly documented assumptions.
+Horizonte de Análise: 2026–2035
 
 ---
 
-Live Dashboard
+Motivação da Pesquisa
 
-Production Environment
+Eventos esportivos de grande porte costumam estar associados a expectativas de:
 
+· Crescimento econômico
+· Expansão do turismo
+· Desenvolvimento de infraestrutura
+· Efeitos no mercado de trabalho
+· Atração de investimento estrangeiro
+· Legado econômico de longo prazo
+
+No entanto, a evidência empírica frequentemente mostra resultados mistos.
+
+O objetivo deste projeto é fornecer uma estrutura transparente e reprodutível para analisar esses potenciais impactos utilizando dados do mundo real, métodos quantitativos e premissas claramente documentadas.
+
+---
+
+Dashboard ao Vivo
+
+Ambiente de Produção
 https://edumetriaquant.streamlit.app
 
 ---
 
-Analytical Framework
+Estrutura Analítica
 
-The platform is organized into four analytical pillars.
+A plataforma está organizada em quatro pilares analíticos:
 
-Economic Monitoring
-
-Monitoring macroeconomic conditions across host countries.
-
-Financial Markets Monitoring
-
-Tracking market performance, volatility and investor sentiment.
-
-Geopolitical & Risk Monitoring
-
-Assessing global uncertainty and macro-financial stress conditions.
-
-Forecasting & Scenario Analysis
-
-Building probabilistic projections and forward-looking scenarios.
+· Monitoramento Econômico – Acompanhamento das condições macroeconômicas nos países-sede.
+· Monitoramento dos Mercados Financeiros – Acompanhamento do desempenho dos mercados, volatilidade e sentimento do investidor.
+· Monitoramento Geopolítico e de Riscos – Avaliação das condições de incerteza global e de estresse macrofinanceiro.
+· Projeções e Análise de Cenários – Construção de projeções probabilísticas e cenários prospectivos.
 
 ---
 
-Dashboard Modules
+Módulos do Dashboard
 
-Module| Description| Status
-Executive Overview| Executive summary of key indicators| ✅
-Macroeconomics| GDP, CPI, interest rates, unemployment and yield curve| ✅
-Tourism Analytics| Tourism flows and sector monitoring| ✅
-Aviation Monitor| Energy and aviation-related indicators| ✅ Partial
-Hospitality Analytics| Hotel occupancy and accommodation indicators| 🚧
-Financial Markets| Indices, ETFs, volatility, drawdowns and correlations| ✅
-Geopolitical Monitor| Global risk and uncertainty indicators| ✅
-ESG Dashboard| Sustainability and environmental indicators| 🚧
-Forecast Center| Monte Carlo simulations and scenario analysis| ✅
-
----
-
-Data Sources
-
-Macroeconomic Data
-
-- Federal Reserve Economic Data (FRED)
-- Statistics Canada (StatCan)
-- Banco de México (Banxico)
-- Instituto Nacional de Estadística y Geografía (INEGI)
-
-Financial Markets
-
-- Yahoo Finance
-- Treasury Market Data
-
-Energy Markets
-
-- West Texas Intermediate (WTI)
-- Brent Crude Oil
-
-Future Integrations
-
-- International Monetary Fund (IMF)
-- World Bank
-- OECD
-- IATA
-- OAG
-- STR Global
+Módulo Descrição Situação
+Visão Geral Executiva Resumo executivo dos principais indicadores ✅
+Macroeconomia PIB, IPC, taxas de juros, desemprego e curva de juros ✅
+Análise de Turismo Fluxos turísticos e monitoramento setorial ✅
+Monitor da Aviação Indicadores de energia e aviação ✅ Parcial
+Análise de Hotelaria Indicadores de ocupação hoteleira e acomodações 🚧
+Mercados Financeiros Índices, ETFs, volatilidade, drawdowns e correlações ✅
+Monitor Geopolítico Indicadores de risco e incerteza globais ✅
+Painel ESG Indicadores de sustentabilidade e meio ambiente 🚧
+Centro de Previsões Simulações de Monte Carlo e análise de cenários ✅
 
 ---
 
-Quantitative Models
+Fontes de Dados
+
+Dados Macroeconômicos
+
+· Federal Reserve Economic Data (FRED)
+· Statistics Canada (StatCan)
+· Banco de México (Banxico)
+· Instituto Nacional de Estadística y Geografía (INEGI)
+
+Mercados Financeiros
+
+· Yahoo Finance
+· Dados do Mercado de Títulos do Tesouro (Treasury)
+
+Mercados de Energia
+
+· West Texas Intermediate (WTI)
+· Brent Crude Oil
+
+Integrações Futuras
+
+· Fundo Monetário Internacional (FMI)
+· Banco Mundial
+· OCDE
+· IATA
+· OAG
+· STR Global
+
+---
+
+Modelos Quantitativos
 
 World Cup Risk Score (WCRS)
+Estrutura proprietária desenvolvida para monitorar o estresse macrofinanceiro global por meio de:
 
-Proprietary framework designed to monitor global macro-financial stress through:
-
-- Volatility indicators
-- Energy market conditions
-- Financial market dynamics
-
----
+· Indicadores de volatilidade
+· Condições do mercado de energia
+· Dinâmica dos mercados financeiros
 
 World Cup Legacy Index (WCLI)
+Estrutura composta experimental concebida para avaliar os potenciais efeitos de legado econômico de longo prazo associados ao torneio. A implementação atual concentra‑se principalmente em métricas de turismo, com expansão futura prevista para:
 
-Experimental composite framework designed to assess potential long-term economic legacy effects associated with the tournament.
+· PIB
+· Emprego
+· Investimento Estrangeiro Direto (IED)
+· Infraestrutura
+· Métricas ESG
 
-Current implementation focuses primarily on tourism metrics, with future expansion planned for:
+Motor de Previsão de Monte Carlo
+O Centro de Previsões implementa atualmente:
 
-- GDP
-- Employment
-- Foreign Direct Investment (FDI)
-- Infrastructure
-- ESG metrics
+· Bootstrap Paramétrico
+· Simulação de Monte Carlo
+· Modelagem de Volatilidade Histórica
 
----
+Configuração atual:
 
-Monte Carlo Forecast Engine
+· 20.000 simulações
+· Análise de percentis
+· Distribuições de cenários
+· Previsão probabilística
 
-The Forecast Center currently implements:
+Monitor da Curva de Juros
+Acompanhamento dos spreads dos títulos do Tesouro como indicador macroeconômico de alerta precoce.
+Implementação atual:
 
-- Parametric Bootstrap
-- Monte Carlo Simulation
-- Historical Volatility Modeling
-
-Current configuration:
-
-- 20,000 simulations
-- Percentile analysis
-- Scenario distributions
-- Probabilistic forecasting
-
----
-
-Yield Curve Monitor
-
-Monitoring of Treasury yield spreads as an early-warning macroeconomic indicator.
-
-Current implementation:
-
-- 10Y–2Y Spread
-- Recession Risk Assessment
+· Spread 10A–2A
+· Avaliação de Risco de Recessão
 
 ---
 
-Forecast Center Methodology
+Metodologia do Centro de Previsões
 
-The current forecasting framework is designed as a transparent MVP architecture.
+A estrutura atual de previsão foi concebida como uma arquitetura MVP transparente.
 
-Implemented
+Implementado
 
-- Historical growth distributions
-- Parametric bootstrap simulations
-- Confidence interval generation
-- Percentile forecasting
+· Distribuições históricas de crescimento
+· Simulações de bootstrap paramétrico
+· Geração de intervalos de confiança
+· Previsão por percentis
 
-Current Limitations
+Limitações Atuais
 
-- Assumes normality of increments
-- Does not model regime changes
-- Does not include extreme-tail events
-- Does not incorporate exogenous World Cup shocks
-- Does not model cross-country dependencies
+· Assume normalidade dos incrementos
+· Não modela mudanças de regime
+· Não inclui eventos de cauda extrema
+· Não incorpora choques exógenos da Copa do Mundo
+· Não modela dependências entre países
 
-All limitations are explicitly documented to ensure methodological transparency.
+Todas as limitações estão explicitamente documentadas para garantir transparência metodológica.
 
 ---
 
-Technical Architecture
+Arquitetura Técnica
 
+```
 edumetria-wc26-cockpit/
 │
 ├── config.py
@@ -239,164 +212,131 @@ edumetria-wc26-cockpit/
 │   └── streamlit_cloud/
 │
 └── tests/
+```
 
 ---
 
-Data Pipeline
+Pipeline de Dados
 
-External APIs
-      │
-      ▼
-   Extract
-      │
-      ▼
-  Transform
-      │
-      ▼
-     Load
-      │
-      ▼
+APIs Externas
+  ↓
+Extração
+  ↓
+Transformação
+  ↓
+Carga
+  ↓
 Data Warehouse
-      │
-      ▼
-Quant Models
-      │
-      ▼
- Dashboard
+  ↓
+Modelos Quantitativos
+  ↓
+Dashboard
 
 ---
 
-Research Roadmap
+Roteiro de Pesquisa
 
-Econometrics & Causal Inference
+Econometria e Inferência Causal
+Implementações futuras previstas:
 
-Planned future implementations:
+· Diferenças-em-Diferenças (DiD)
+· Controle Sintético
+· Estudos de Evento
+· Ridge VAR
+· GARCH-X
+· Projeções Locais
+· Modelos de Insumo-Produto
 
-- Difference-in-Differences (DiD)
-- Synthetic Control
-- Event Studies
-- Ridge VAR
-- GARCH-X
-- Local Projections
-- Input-Output Models
+Aprendizado de Máquina
+Implementações futuras previstas:
 
----
+· XGBoost
+· LightGBM
+· Prophet
+· LSTM
 
-Machine Learning
+Análise de Riscos
+Implementações futuras previstas:
 
-Planned future implementations:
+· Teoria de Valores Extremos (EVT)
+· Testes de Estresse
+· Modelos de Mudança de Regime
+· Análise de Cenários
+· Monitoramento de Risco Soberano
 
-- XGBoost
-- LightGBM
-- Prophet
-- LSTM
+Avaliação de Impacto do Legado
+Módulos de pesquisa futuros:
 
----
-
-Risk Analytics
-
-Planned future implementations:
-
-- Extreme Value Theory (EVT)
-- Stress Testing
-- Regime Switching Models
-- Scenario Analysis
-- Sovereign Risk Monitoring
-
----
-
-Legacy Impact Assessment
-
-Future research modules:
-
-- Historical World Cup Benchmarking
-- Counterfactual Analysis
-- Infrastructure Impact Assessment
-- Tourism Legacy Analysis
-- Foreign Investment Impact Analysis
+· Benchmarking Histórico de Copas do Mundo
+· Análise Contrafactual
+· Avaliação de Impacto em Infraestrutura
+· Análise do Legado Turístico
+· Análise de Impacto no Investimento Estrangeiro
 
 ---
 
-Methodological Principles
+Princípios Metodológicos
 
-The project follows the following principles:
+O projeto segue os seguintes princípios:
 
-- Transparency
-- Reproducibility
-- Auditability
-- Explicit Assumptions
-- Documented Limitations
+· Transparência
+· Reprodutibilidade
+· Auditabilidade
+· Premissas Explícitas
+· Limitações Documentadas
 
-Results should not be interpreted as investment advice, official forecasts or policy recommendations.
+Os resultados não devem ser interpretados como consultoria de investimento, previsões oficiais ou recomendações de políticas.
 
 ---
 
-Project Status
+Situação do Projeto
 
-Current Stage
+Estágio Atual: MVP Concluído
 
-MVP Completed
-
-✅ Data Ingestion
-
-✅ ETL Pipeline
-
+✅ Ingestão de Dados
+✅ Pipeline de ETL
 ✅ Data Warehouse
+✅ Dashboard Quantitativo
+✅ Centro de Previsões
+✅ Indicadores Proprietários
+✅ Estrutura de Monitoramento de Riscos
 
-✅ Quantitative Dashboard
+Em Desenvolvimento
 
-✅ Forecast Center
-
-✅ Proprietary Indicators
-
-✅ Risk Monitoring Framework
-
----
-
-Under Development
-
-🚧 Econometric Models
-
-🚧 Causal Inference Frameworks
-
-🚧 Counterfactual Analysis
-
-🚧 Legacy Impact Estimation
-
-🚧 Advanced Risk Analytics
+🚧 Modelos Econométricos
+🚧 Estruturas de Inferência Causal
+🚧 Análise Contrafactual
+🚧 Estimação do Impacto do Legado
+🚧 Análise Avançada de Riscos
 
 ---
 
-Future Vision
+Visão de Futuro
 
-The long-term objective is to evolve the platform into a research-grade analytical environment for:
+O objetivo de longo prazo é evoluir a plataforma para um ambiente analítico de nível de pesquisa voltado a:
 
-- Economic Impact Assessment
-- Risk Analytics
-- Applied Econometrics
-- Policy Evaluation
-- Mega-Event Economics
+· Avaliação de Impacto Econômico
+· Análise de Riscos
+· Econometria Aplicada
+· Avaliação de Políticas
+· Economia de Megaeventos
 
-inspired by analytical frameworks commonly used by central banks, multilateral organizations and economic research institutions.
+inspirado em estruturas analíticas comumente utilizadas por bancos centrais, organizações multilaterais e instituições de pesquisa econômica.
 
 ---
 
-Author
+Autor
 
 Eduardo Moraes
+Cientista de Dados Quantitativos
+Pesquisador em Economia
+Estudante de Engenharia de Sistemas e Controle
 
-Quantitative Data Scientist
-
-Economics Researcher
-
-Systems & Control Engineering Student
-
-Independent Research Project
+Projeto de Pesquisa Independente
 
 ---
 
-Disclaimer
+Aviso Legal
 
-FIFA World Cup 2026™ is a trademark of FIFA.
-
-This project is an independent academic and analytical initiative and is not affiliated with, endorsed by or sponsored by FIFA.
+FIFA World Cup 2026™ é uma marca registrada da FIFA.
+Este projeto é uma iniciativa acadêmica e analítica independente e não é afiliado, endossado ou patrocinado pela FIFA.
