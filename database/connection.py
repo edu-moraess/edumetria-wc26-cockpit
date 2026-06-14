@@ -12,7 +12,7 @@ if str(ROOT_DIR) not in sys.path:
 
 import duckdb
 import psycopg2
-from config import DB_BACKEND, DUCKDB_PATH, DB_DIR   # agora o config é encontrado
+from config import DB_BACKEND, DUCKDB_PATH, DATABASE_DIR
 
 
 def get_connection():
@@ -40,7 +40,7 @@ def init_db():
     """
     Lê o schema.sql e inicializa as tabelas no banco de dados.
     """
-    schema_path = DB_DIR / "schema.sql"   # DB_DIR aponta para a pasta database/
+    schema_path = DATABASE_DIR / "schema.sql"
     if not schema_path.exists():
         raise FileNotFoundError(f"Arquivo schema.sql não encontrado em {schema_path}")
 
