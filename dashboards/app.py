@@ -22,7 +22,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Extrai variáveis do tema para evitar escape de aspas dentro de f-strings
+# Extrai variáveis do tema
 bg          = THEME["background"]
 surface     = THEME["surface"]
 surface_alt = THEME["surface_alt"]
@@ -188,7 +188,7 @@ st.sidebar.markdown(
 )
 
 # ------------------------------------------------------------------
-# SIDEBAR — BOTÃO ETL
+# SIDEBAR — BOTÃO ETL E LIMPAR CACHE
 # ------------------------------------------------------------------
 st.sidebar.markdown(
     f"""
@@ -217,6 +217,11 @@ if st.sidebar.button("↺  Atualizar dados", use_container_width=True):
             st.sidebar.success("✓ Dados atualizados")
         except Exception as e:
             st.sidebar.error(f"Erro: {e}")
+
+# Botão para limpar cache do Streamlit (útil após atualizar dados)
+if st.sidebar.button("🗑️ Limpar cache", use_container_width=True):
+    st.cache_data.clear()
+    st.sidebar.success("Cache limpo! Recarregue a página ou altere de aba para ver os novos dados.")
 
 # ------------------------------------------------------------------
 # SIDEBAR — STATUS DO BANCO
