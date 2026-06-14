@@ -1,12 +1,10 @@
 """
 etl/extractors/yfinance_markets.py
-Extractor de dados de mercado financeiro via yfinance (sem API key).
+Extractor principal de dados de mercado via yfinance.
 
-Cobre página 6 (Mercado Financeiro):
-- Índices nacionais dos 3 países-sede
-- Setores relevantes (turismo, hotelaria, aviação, entretenimento)
-- WTI/Brent (página 7 - Geopolítica)
-- VIX (página 7 - Geopolítica)
+CORREÇÃO v2:
+- Fix para yfinance >= 0.2.40 que retorna MultiIndex columns
+- auto_adjust=True para preços ajustados por padrão
 """
 
 import sys
@@ -22,48 +20,59 @@ if str(ROOT_DIR) not in sys.path:
 
 from config import RAW_DATA_DIR  # noqa: E402
 
-# Tickers de interesse
 TICKERS = {
-    # Índices nacionais (países-sede)
-    "^GSPC": "sp500_usa",
-    "^GSPTSE": "tsx_canada",
-    "^MXX": "ipc_mexico",
-
-    # Risco / Geopolítica
-    "^VIX": "vix",
-    "CL=F": "wti_crude",
-    "BZ=F": "brent_crude",
-
-    # Setores (ETFs como proxy)
-    "XLY": "consumo_discricionario_usa",   # inclui turismo/lazer
-    "JETS": "etf_aviacao",
-    "PEJ": "etf_lazer_entretenimento",
+    "^GSPC":  "sp500_usa",
+    "^GSPTSE":"tsx_canada",
+    "^MXX":   "ipc_mexico",
+    "^VIX":   "vix",
+    "CL=F":   "wti_crude",
+    "BZ=F":   "brent_crude",
+    "JETS":   "etf_aviacao",
+    "PEJ":    "etf_lazer_entretenimento",
+    "XLY":    "consumo_discricionario_usa",
 }
 
 
-def run(start: str = "2015-01-01"):
-    """Baixa séries diárias de todos os tickers e salva em data/raw/."""
-    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    today = date.today().isoformat()
-
-    frames = []
-    for ticker, label in TICKERS.items():
-        print(f"Baixando {ticker} ({label})...")
-        hist = yf.download(ticker, start=start, progress=False)
+def _download_ticker(ticker: str, start: str) -> pd.DataFrame | None:
+    try:
+        hist = yf.download(ticker, start=start, progress=False, auto_adjust=True)
         if hist.empty:
-            print(f"  ⚠️  Sem dados para {ticker}, pulando.")
-            continue
-
+            return None
+        if isinstance(hist.columns, pd.MultiIndex):
+            hist = hist["Close"].to_frame()
+            hist.columns = ["Close"]
         df = hist[["Close"]].reset_index()
         df.columns = ["date", "close"]
-        df["ticker"] = ticker
+        return df
+    except Exception as e:
+        print(f"  ⚠️  Erro {ticker}: {e}")
+        return None
+
+
+def run(start: str = "2015-01-01"):
+    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    today  = date.today().isoformat()
+    frames = []
+
+    for ticker, label in TICKERS.items():
+        print(f"Baixando {ticker} ({label})...")
+        df = _download_ticker(ticker, start)
+        if df is None:
+            print(f"  ⚠️  Sem dados para {ticker}, pulando.")
+            continue
+        df["ticker"]          = ticker
         df["indicator_label"] = label
         frames.append(df)
+        print(f"  → {len(df)} observações")
 
-    result = pd.concat(frames, ignore_index=True)
+    if not frames:
+        print("Nenhum dado extraído.")
+        return None
+
+    result   = pd.concat(frames, ignore_index=True)
     out_path = RAW_DATA_DIR / f"yfinance_markets_{today}.csv"
     result.to_csv(out_path, index=False)
-    print(f"Salvo: {out_path} ({len(result)} linhas)")
+    print(f"\nSalvo: {out_path} ({len(result):,} linhas)")
     return result
 
 
