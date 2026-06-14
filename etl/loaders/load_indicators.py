@@ -1,7 +1,6 @@
 """
 etl/loaders/load_indicators.py
-Carrega dados processados sem dropar tabelas que têm dependências.
-Estratégia: DELETE + RELOAD (preserva constraints)
+Carrega dados processados com limpeza ordenada de dependências (TRUNCATE CASCADE).
 """
 
 import sys
@@ -14,6 +13,8 @@ if str(ROOT_DIR) not in sys.path:
 
 from config import PROCESSED_DATA_DIR
 from database.connection import get_connection, init_schema
+
+# ... (INDICATOR_CATALOG e SOURCE_CATALOG mantidos iguais) ...
 
 INDICATOR_CATALOG = [
     ("GDP_NOMINAL",         "PIB Nominal (EUA)",                "USD_BN",    "macro"),
@@ -66,10 +67,9 @@ KNOWN_CODES = {row[0] for row in INDICATOR_CATALOG}
 
 def ensure_dims(conn):
     """Garante que dim_indicator e dim_source existam e estejam preenchidas."""
-    # Verifica se as tabelas existem
     tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").df()["name"].tolist()
+    
     if "dim_indicator" not in tables or "dim_source" not in tables:
-        # Recria todas (mas sem dropar fact*)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS dim_indicator (
                 indicator_code TEXT PRIMARY KEY,
@@ -86,17 +86,30 @@ def ensure_dims(conn):
                 tier TEXT
             )
         """)
-        # Popula
-        for code, name, unit, cat in INDICATOR_CATALOG:
-            conn.execute("INSERT OR IGNORE INTO dim_indicator VALUES (?, ?, ?, ?)", [code, name, unit, cat])
-        for sid, name, typ, tier in SOURCE_CATALOG:
-            conn.execute("INSERT OR IGNORE INTO dim_source VALUES (?, ?, ?, ?)", [sid, name, typ, tier])
-    else:
-        # Atualiza se faltar algum
-        for code, name, unit, cat in INDICATOR_CATALOG:
-            conn.execute("INSERT OR IGNORE INTO dim_indicator VALUES (?, ?, ?, ?)", [code, name, unit, cat])
-        for sid, name, typ, tier in SOURCE_CATALOG:
-            conn.execute("INSERT OR IGNORE INTO dim_source VALUES (?, ?, ?, ?)", [sid, name, typ, tier])
+    
+    for code, name, unit, cat in INDICATOR_CATALOG:
+        conn.execute("INSERT OR IGNORE INTO dim_indicator VALUES (?, ?, ?, ?)", [code, name, unit, cat])
+    for sid, name, typ, tier in SOURCE_CATALOG:
+        conn.execute("INSERT OR IGNORE INTO dim_source VALUES (?, ?, ?, ?)", [sid, name, typ, tier])
+
+def clear_fact_tables(conn):
+    """Limpeza ordenada com TRUNCATE CASCADE para evitar erros de FK."""
+    print("🧹 Limpando tabelas de fatos (com dependências)...")
+    try:
+        # Ordem: dependentes primeiro
+        conn.execute("TRUNCATE TABLE IF EXISTS fact_montecarlo_distribution CASCADE")
+        conn.execute("TRUNCATE TABLE IF EXISTS fact_wcli CASCADE")  # se existir
+        # Adicione outras fact_* dependentes aqui no futuro
+        conn.execute("TRUNCATE TABLE fact_indicator_values CASCADE")
+        print("✓ Limpeza concluída com sucesso.")
+    except Exception as e:
+        print(f"⚠️ Erro no TRUNCATE: {e}. Tentando DELETE fallback...")
+        try:
+            conn.execute("DELETE FROM fact_montecarlo_distribution")
+            conn.execute("DELETE FROM fact_indicator_values")
+            print("✓ Limpeza via DELETE.")
+        except Exception as e2:
+            print(f"✗ Falha na limpeza: {e2}")
 
 def load_processed_file(conn, path: Path, next_id: int) -> int:
     print(f"Carregando {path.name}...")
@@ -147,12 +160,9 @@ def load_processed_file(conn, path: Path, next_id: int) -> int:
     return next_id + len(insert_df)
 
 def run():
-    # Inicializa schema (cria tabelas se não existirem, mas não dropar)
-    init_schema()  # assume que init_schema cria as fact_* sem dropar
+    init_schema()
     with get_connection() as conn:
-        # Limpa apenas os dados da tabela fact, não a estrutura
-        conn.execute("DELETE FROM fact_indicator_values")
-        print("✓ Dados antigos removidos (fact_indicator_values).\n")
+        clear_fact_tables(conn)
         ensure_dims(conn)
 
         files = sorted(PROCESSED_DATA_DIR.glob("*.parquet"))
