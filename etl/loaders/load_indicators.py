@@ -3,16 +3,7 @@ etl/loaders/load_indicators.py
 Carrega todos os arquivos processados (data/processed/*.parquet) nas
 tabelas dim_indicator, dim_source e fact_indicator_values do banco.
 
-ESTRATÉGIA DE ATUALIZAÇÃO: truncate + reload.
-Antes de cada carga, apaga todos os registros de fact_indicator_values
-e reinicia do id=1. Isto evita duplicação quando o pipeline roda
-múltiplas vezes (o banco não cresce indefinidamente).
-
-Justificativa: o DuckDB no Streamlit Cloud é efêmero (não persiste entre
-restarts), então não há histórico real a preservar — truncate é seguro.
-Em produção com Postgres persistente, substituir por upsert
-(INSERT ... ON CONFLICT DO UPDATE) usando a chave
-(country_code, indicator_code, period, scenario_code, source_id).
+ESTRATÉGIA: truncate + reload (sem duplicação).
 """
 
 import sys
@@ -28,25 +19,53 @@ from config import PROCESSED_DATA_DIR  # noqa: E402
 from database.connection import get_connection, init_schema  # noqa: E402
 
 INDICATOR_CATALOG = [
-    ("GDP_NOMINAL",                 "PIB Nominal",                         "USD_BN",  "macro"),
-    ("GDP_REAL",                    "PIB Real (encadeado)",                 "INDEX",   "macro"),
-    ("CPI",                         "Índice de Preços ao Consumidor",       "INDEX",   "macro"),
-    ("UNEMPLOYMENT_RATE",           "Taxa de Desemprego",                   "PERCENT", "macro"),
-    ("POLICY_RATE",                 "Taxa de Política Monetária",           "PERCENT", "macro"),
-    ("FX_INDEX",                    "Índice Cambial (trade-weighted)",       "INDEX",   "macro"),
-    ("TREASURY_10Y",                "Treasury 10 Anos (EUA)",              "PERCENT", "macro"),
-    ("TREASURY_2Y",                 "Treasury 2 Anos (EUA)",               "PERCENT", "macro"),
-    ("YIELD_SPREAD_10Y2Y",          "Yield Spread 10Y-2Y (EUA)",           "PERCENT", "macro"),
-    ("SP500",                       "S&P 500",                              "INDEX",   "financeiro"),
-    ("TSX",                         "TSX Composite (Canadá)",               "INDEX",   "financeiro"),
-    ("IPC_MEXICO",                  "IPC México",                           "INDEX",   "financeiro"),
-    ("VIX",                         "VIX — Índice de Volatilidade",         "INDEX",   "geopolitica"),
-    ("WTI_CRUDE",                   "Petróleo WTI",                         "USD_BBL", "geopolitica"),
-    ("BRENT_CRUDE",                 "Petróleo Brent",                       "USD_BBL", "geopolitica"),
-    ("ETF_AVIATION",                "ETF Setor Aviação (JETS)",             "USD",     "financeiro"),
-    ("ETF_LEISURE",                 "ETF Lazer/Entretenimento (PEJ)",       "USD",     "financeiro"),
-    ("ETF_CONSUMER_DISCRETIONARY",  "ETF Consumo Discricionário (XLY)",     "USD",     "financeiro"),
-    ("TOURISM_ARRIVALS",            "Chegadas de Turistas Internacionais",  "COUNT",   "turismo"),
+    # --- Macro EUA (FRED) ---
+    ("GDP_NOMINAL",           "PIB Nominal (EUA)",                    "USD_BN",  "macro"),
+    ("GDP_REAL",              "PIB Real Encadeado (EUA)",              "INDEX",   "macro"),
+    ("CPI",                   "CPI — Inflação (EUA)",                  "INDEX",   "macro"),
+    ("UNEMPLOYMENT_RATE",     "Taxa de Desemprego (EUA)",              "PERCENT", "macro"),
+    ("POLICY_RATE",           "Fed Funds Rate",                        "PERCENT", "macro"),
+    ("FX_INDEX",              "Índice Cambial USD (trade-weighted)",    "INDEX",   "macro"),
+    # --- Treasuries e spreads ---
+    ("TREASURY_10Y",          "Treasury 10 Anos (EUA)",                "PERCENT", "macro"),
+    ("TREASURY_2Y",           "Treasury 2 Anos (EUA)",                 "PERCENT", "macro"),
+    ("TREASURY_3M",           "Treasury 3 Meses (EUA)",                "PERCENT", "macro"),
+    ("YIELD_SPREAD_10Y2Y",    "Yield Spread 10Y–2Y (EUA)",             "PERCENT", "macro"),
+    ("YIELD_SPREAD_10Y3M",    "Yield Spread 10Y–3M (EUA)",             "PERCENT", "macro"),
+    # --- Recession Monitor ---
+    ("SAHM_RULE",             "Sahm Rule (Recessão em Tempo Real)",    "PERCENT", "macro"),
+    ("LEADING_INDEX",         "Leading Economic Index (EUA)",          "INDEX",   "macro"),
+    ("RECESSION_PROB",        "Probabilidade de Recessão (EUA, %)",    "PERCENT", "macro"),
+    # --- Stress financeiro ---
+    ("TED_SPREAD",            "TED Spread (stress bancário)",          "PERCENT", "financeiro"),
+    ("HY_SPREAD",             "High Yield Spread (crédito)",           "PERCENT", "financeiro"),
+    # --- Mercado Financeiro (yfinance) ---
+    ("SP500",                 "S&P 500",                               "INDEX",   "financeiro"),
+    ("TSX",                   "TSX Composite (Canadá)",                "INDEX",   "financeiro"),
+    ("IPC_MEXICO",            "IPC México",                            "INDEX",   "financeiro"),
+    ("NASDAQ",                "Nasdaq Composite",                      "INDEX",   "financeiro"),
+    ("RUSSELL2000",           "Russell 2000",                          "INDEX",   "financeiro"),
+    ("VIX",                   "VIX — Volatilidade Implícita",          "INDEX",   "geopolitica"),
+    ("MOVE_INDEX",            "MOVE Index — Vol. Implícita de Bonds",  "INDEX",   "financeiro"),
+    # --- Energia / Commodities ---
+    ("WTI_CRUDE",             "Petróleo WTI",                          "USD_BBL", "geopolitica"),
+    ("BRENT_CRUDE",           "Petróleo Brent",                        "USD_BBL", "geopolitica"),
+    ("NATURAL_GAS",           "Gás Natural (futuros)",                 "USD_MMBTU","geopolitica"),
+    ("GOLD",                  "Ouro (futuros)",                        "USD_OZ",  "geopolitica"),
+    # --- ETFs Setoriais ---
+    ("ETF_AVIATION",          "ETF Aviação (JETS)",                    "USD",     "financeiro"),
+    ("ETF_LEISURE",           "ETF Lazer/Entretenimento (PEJ)",        "USD",     "financeiro"),
+    ("ETF_CONSUMER_DISCRETIONARY", "ETF Consumo Discricionário (XLY)","USD",     "financeiro"),
+    # --- Turismo ---
+    ("TOURISM_ARRIVALS",      "Chegadas Turistas Internacionais",      "COUNT",   "turismo"),
+    # --- Soberania / Fiscal ---
+    ("DEBT_TO_GDP",           "Dívida/PIB (EUA, %)",                   "PERCENT", "macro"),
+    ("FISCAL_DEFICIT",        "Déficit Fiscal (EUA, % PIB)",           "PERCENT", "macro"),
+    # --- Mercado de trabalho ---
+    ("LABOR_PARTICIPATION",   "Taxa de Participação Laboral (EUA)",    "PERCENT", "macro"),
+    ("AVG_HOURLY_EARNINGS",   "Salário Médio por Hora (EUA)",          "USD",     "macro"),
+    # --- Cross-checks ---
+    ("TREASURY_10Y_YF",       "Treasury 10Y — yfinance (cross-check)", "PERCENT", "macro"),
 ]
 
 SOURCE_CATALOG = [
@@ -58,7 +77,7 @@ SOURCE_CATALOG = [
 ]
 
 SOURCE_NAME_TO_ID = {name: sid for sid, name, *_ in SOURCE_CATALOG}
-KNOWN_CODES = {row[0] for row in INDICATOR_CATALOG}
+KNOWN_CODES       = {row[0] for row in INDICATOR_CATALOG}
 
 
 def ensure_dims(conn):
@@ -88,7 +107,7 @@ def load_processed_file(conn, path: Path, next_id: int) -> int:
     df = pd.read_parquet(path)
 
     before = len(df)
-    df = df.dropna(subset=["value"])
+    df     = df.dropna(subset=["value"])
     if (dropped := before - len(df)) > 0:
         print(f"  ⚠️  {dropped} linhas com value=NULL removidas.")
 
@@ -135,18 +154,14 @@ def load_processed_file(conn, path: Path, next_id: int) -> int:
 
 def run():
     init_schema()
-
     with get_connection() as conn:
-        # --- TRUNCATE antes de recarregar (evita duplicação) ---
         conn.execute("DELETE FROM fact_indicator_values")
-        print("✓ fact_indicator_values limpa (truncate). Recarregando...")
-
+        print("✓ fact_indicator_values limpa. Recarregando...")
         ensure_dims(conn)
 
         processed_files = sorted(PROCESSED_DATA_DIR.glob("*.parquet"))
         if not processed_files:
-            print("Nenhum arquivo .parquet em data/processed/. "
-                  "Rode os transformers primeiro.")
+            print("Nenhum .parquet em data/processed/.")
             return
 
         next_id = 1
@@ -156,7 +171,7 @@ def run():
         total = conn.execute(
             "SELECT COUNT(*) AS n FROM fact_indicator_values"
         ).df()["n"][0]
-        print(f"\n✓ Total em fact_indicator_values: {total:,} linhas.")
+        print(f"\n✓ Total: {total:,} linhas.")
 
 
 if __name__ == "__main__":
