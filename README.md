@@ -1,146 +1,220 @@
-# Edumetria WC26 Cockpit
-### FIFA World Cup 2026™ — Impact Analytics Platform
+Edumetria WC26 Cockpit
 
-**Eduardo Moraes · Quant Data Scientist & Economics Researcher · Edumetria**
+FIFA World Cup 2026™ — Impact Analytics Platform
 
-[
+Eduardo Moraes
+Quantitative Data Scientist · Economics Researcher · Edumetria
 
-![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)
+""Streamlit App" (https://static.streamlit.io/badges/streamlit_badge_black_white.svg)" (https://edumetriaquant.streamlit.app)
 
-](https://edumetriaquant.streamlit.app)
+Plataforma analítica para monitoramento, análise e projeção dos impactos econômicos, financeiros, geopolíticos e setoriais associados à Copa do Mundo FIFA 2026™, sediada por Estados Unidos, Canadá e México.
 
-Plataforma analítica institucional para monitoramento, análise e projeção
-dos impactos macroeconômicos, financeiros, geopolíticos e sociais da
-Copa do Mundo FIFA 2026™ (EUA · Canadá · México), horizonte 2026–2035.
+O projeto integra dados públicos de instituições governamentais, bancos centrais e mercados financeiros para construção de indicadores proprietários, cenários prospectivos e modelos quantitativos voltados à avaliação de riscos, oportunidades e efeitos de legado do evento.
 
-Qualidade equivalente a projetos de pesquisa de IMF, World Bank, Goldman
-Sachs Research e bancos centrais — com transparência total de metodologia,
-limitações e premissas.
+Horizonte Analítico: 2026–2035
 
 ---
 
-## Dashboard ao vivo
+Dashboard
 
-**[edumetriaquant.streamlit.app](https://edumetriaquant.streamlit.app)**
+Acesse:
 
----
-
-## Páginas
-
-| # | Página | Dados reais | Status |
-|---|--------|------------|--------|
-| 1 | Executive Overview | Turismo (CAN/MEX), snapshot de mercado | ✅ |
-| 2 | Macroeconomia | FRED (PIB, CPI, juros, desemprego, yield spread) | ✅ |
-| 3 | Turismo | StatCan (Canadá) · Banxico (México) | ✅ |
-| 4 | Aviação | WTI como proxy de custo de combustível | ✅ parcial |
-| 5 | Hotelaria | — (STR Global, fonte paga) | ⏳ |
-| 6 | Mercado Financeiro | yfinance (índices, ETFs, drawdown, correlação, vol.) | ✅ |
-| 7 | Geopolítica | WTI, Brent, VIX, World Cup Risk Score | ✅ |
-| 8 | ESG | — (dados de emissões pendentes) | ⏳ |
-| 9 | Forecast Center | Monte Carlo 20k simulações (bootstrap paramétrico) | ✅ |
+https://edumetriaquant.streamlit.app
 
 ---
 
-## Fontes de dados
+Objetivos
 
-| Fonte | Cobertura | Custo |
-|-------|-----------|-------|
-| FRED (Federal Reserve) | Macro EUA: PIB, CPI, juros, câmbio, Treasuries | Grátis |
-| Yahoo Finance (yfinance) | Índices, ETFs, WTI, Brent, VIX | Grátis |
-| Statistics Canada (StatCan) | Turismo e macro Canadá | Grátis |
-| Banxico SIE | Turismo México | Grátis (token) |
-| INEGI | Macro México | Grátis (token) |
-| STR Global / OAG / IATA | Hotelaria e aviação | Pago — fase pós-MVP |
+- Monitorar indicadores macroeconômicos dos países-sede
+- Avaliar impactos potenciais sobre turismo, mercado financeiro e infraestrutura
+- Construir métricas quantitativas de risco e legado econômico
+- Disponibilizar análises transparentes, reproduzíveis e auditáveis
+- Desenvolver um laboratório aplicado de Data Science, Economia e Sistemas Quantitativos
 
 ---
 
-## Modelos implementados
+Módulos do Dashboard
 
-- **World Cup Risk Score (0–100)** — percentil histórico de VIX,
-  choque no petróleo (WTI vs. média 252d) e volatilidade cambial (FX Index)
-- **World Cup Legacy Index (WCLI)** — índice composto ponderado
-  (componente turismo ativo; PIB/Emprego/FDI/Infra/ESG pendentes)
-- **Monte Carlo (20.000 simulações)** — bootstrap paramétrico com
-  distribuições históricas (PIB, CPI, desemprego EUA; turismo CAN/MEX)
-- **Yield Spread 10Y–2Y** — indicador derivado (FRED), integrado
-  à análise de risco de recessão pré-Copa
+Página| Descrição| Status
+Executive Overview| Visão executiva dos principais indicadores| ✅
+Macroeconomia| PIB, inflação, juros, desemprego e curva de juros| ✅
+Turismo| Fluxo turístico e indicadores setoriais| ✅
+Aviação| Custos energéticos e proxies operacionais| ✅ Parcial
+Hotelaria| Indicadores de ocupação e receita| 🚧 Em desenvolvimento
+Mercado Financeiro| Índices, ETFs, volatilidade e correlações| ✅
+Geopolítica| Indicadores de risco global e energia| ✅
+ESG| Indicadores ambientais e sustentabilidade| 🚧 Em desenvolvimento
+Forecast Center| Simulações e cenários prospectivos| ✅
 
 ---
 
-## Arquitetura
+Fontes de Dados
+
+Fonte| Aplicação
+FRED (Federal Reserve Economic Data)| Indicadores macroeconômicos dos EUA
+Yahoo Finance (yfinance)| Mercados financeiros e commodities
+Statistics Canada (StatCan)| Dados econômicos e turísticos do Canadá
+Banxico SIE| Indicadores econômicos e turismo do México
+INEGI| Estatísticas econômicas mexicanas
+World Bank (Roadmap)| Indicadores estruturais e comparativos
+IMF Data (Roadmap)| Séries macroeconômicas globais
+STR Global (Planejado)| Hotelaria
+IATA / OAG (Planejado)| Aviação
+
+---
+
+Indicadores Proprietários
+
+World Cup Risk Score (WCRS)
+
+Índice sintético de risco baseado em:
+
+- Volatilidade implícita (VIX)
+- Choques nos preços do petróleo
+- Volatilidade cambial
+- Normalização por percentis históricos
+
+Escala:
+
+- 0–33 → Baixo risco
+- 34–66 → Risco moderado
+- 67–100 → Alto risco
+
+World Cup Legacy Index (WCLI)
+
+Índice de legado econômico estruturado para incorporar:
+
+- Turismo
+- Crescimento econômico
+- Emprego
+- Investimento estrangeiro direto (FDI)
+- Infraestrutura
+- Sustentabilidade (ESG)
+
+Atualmente em fase de expansão metodológica.
+
+---
+
+Modelagem Quantitativa
+
+Implementado
+
+- Monte Carlo Simulation (20.000 cenários)
+- Bootstrap Paramétrico
+- Yield Spread Analysis (10Y–2Y)
+- Risk Scoring Framework
+- Drawdown Analysis
+- Volatility Monitoring
+- Correlation Analysis
+
+Roadmap
+
+- VAR / Ridge-VAR
+- GARCH-X
+- Difference-in-Differences
+- Synthetic Control
+- Input-Output Models
+- XGBoost
+- LightGBM
+- Prophet
+- LSTM
+
+---
+
+Arquitetura
 
 edumetria-wc26-cockpit/
-├── config.py               # configuração central (tema quant, baseline FIFA, WCLI)
-├── config_secrets.py       # helper st.secrets ↔ os.getenv
+│
+├── config.py
 ├── requirements.txt
 │
 ├── data/
-│   ├── raw/                # snapshots imutáveis das fontes
-│   ├── processed/          # dados normalizados (parquet)
-│   └── external/           # datasets de terceiros
+│   ├── raw/
+│   ├── processed/
+│   └── external/
 │
 ├── database/
-│   ├── schema.sql          # star schema (dim_* + fact_*)
-│   └── connection.py       # DuckDB (dev) / Postgres (produção)
+│   ├── schema.sql
+│   └── connection.py
 │
 ├── etl/
-│   ├── extractors/         # 1 módulo por fonte (fred, yfinance, statcan, banxico, inegi)
-│   ├── transformers/       # limpeza, normalização, indicadores derivados
-│   ├── loaders/            # carga no DW (truncate + reload — sem duplicação)
-│   └── run_pipeline.py     # orquestrador (chamado pelo botão do dashboard)
+│   ├── extractors/
+│   ├── transformers/
+│   ├── loaders/
+│   └── run_pipeline.py
 │
 ├── models/
-│   ├── econometric/        # I-O, contrafactual, GARCH-X, Ridge-VAR (fase pós-MVP)
-│   ├── ml/                 # XGBoost, LightGBM, Prophet, LSTM (fase pós-MVP)
-│   └── montecarlo/         # Risk Score, WCLI, simulação, FIFA Auditor
+│   ├── econometric/
+│   ├── ml/
+│   └── montecarlo/
 │
 ├── metadata/
-│   └── data_dictionary.py  # catálogo completo de indicadores
+│   └── data_dictionary.py
 │
 ├── dashboards/
-│   ├── app.py              # entry point Streamlit (tema quant, navegação, ETL)
-│   ├── components.py       # KPI cards, apply_theme() subplot-safe
-│   └── pages/              # 9 páginas (01_executive_overview → 09_forecast_center)
+│   ├── app.py
+│   ├── components.py
+│   └── pages/
 │
 ├── deployment/
-│   ├── docker/             # Dockerfile + docker-compose
-│   └── streamlit_cloud/    # config.toml + guia de deploy
+│   ├── docker/
+│   └── streamlit_cloud/
 │
-└── tests/                  # pytest (em desenvolvimento)
-
+└── tests/
 
 ---
 
-## Como executar localmente
+Execução Local
 
-```bash
-# 1. Instalar dependências
 pip install -r requirements.txt
 
-# 2. Configurar variáveis de ambiente
 cp .env.example .env
-# Editar .env com suas chaves de API
 
-# 3. Inicializar schema do banco
 python database/connection.py
 
-# 4. Rodar o pipeline ETL (baixa dados das APIs)
 python -m etl.run_pipeline
 
-# 5. Iniciar o dashboard
 streamlit run dashboards/app.py
 
-Deploy (Streamlit Cloud)
-Fork ou clone este repositório
-Em share.streamlit.io, aponte para dashboards/app.py
-Em Settings → Secrets, adicione:
+---
+
+Deploy
+
+Streamlit Cloud
+
+Configurar os seguintes Secrets:
 
 FIFA2026_DB_BACKEND = "duckdb"
-FRED_API_KEY        = "sua_chave_fred"
-BANXICO_TOKEN       = "seu_token_banxico"
-INEGI_TOKEN         = "seu_token_inegi"
 
-Clique "↺ Atualizar dados" na sidebar do app para popular o banco
-Nota: o DuckDB no Streamlit Cloud é efêmero — os dados são
-recarregados a cada restart do app. Para persistência entre sessões,
-migrar para Postgres gerenciado (Supabase / Neon free tier).
+FRED_API_KEY = "your_key"
+
+BANXICO_TOKEN = "your_token"
+
+INEGI_TOKEN = "your_token"
+
+Após o deploy, utilize a opção Atualizar Dados para executar o pipeline ETL diretamente pela interface.
+
+---
+
+Limitações
+
+- Parte dos indicadores setoriais ainda depende de bases pagas.
+- O projeto não constitui recomendação de investimento.
+- Resultados de simulações dependem das premissas adotadas.
+- Algumas métricas encontram-se em fase experimental.
+
+---
+
+Licença
+
+MIT License
+
+---
+
+Autor
+
+Eduardo Moraes
+
+Quantitative Data Scientist · Economics Researcher
+
+Projeto independente de pesquisa aplicada em Economia, Data Science e Sistemas Quantitativos voltados à Copa do Mundo FIFA 2026™.
