@@ -1,9 +1,6 @@
 """
 etl/transformers/clean_markets.py
-Normaliza dados de mercado do yfinance (data/raw/yfinance_markets_*.csv)
-para o formato "tidy" que alimenta fact_indicator_values.
-
-Saída: data/processed/markets.parquet
+Normaliza dados de mercado com fallback para executar extrator se necessário.
 """
 
 import sys
@@ -15,9 +12,9 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from config import RAW_DATA_DIR, PROCESSED_DATA_DIR  # noqa: E402
+from config import RAW_DATA_DIR, PROCESSED_DATA_DIR
+from etl.extractors import yfinance_markets
 
-# Mapeia label do yfinance -> (indicator_code, country_code ou None p/ global)
 INDICATOR_MAP = {
     "sp500_usa": ("SP500", "USA"),
     "tsx_canada": ("TSX", "CAN"),
@@ -30,20 +27,23 @@ INDICATOR_MAP = {
     "consumo_discricionario_usa": ("ETF_CONSUMER_DISCRETIONARY", "USA"),
 }
 
-
-def find_latest_raw_file() -> Path:
+def find_or_fetch_raw_file():
+    files = sorted(RAW_DATA_DIR.glob("yfinance_markets_*.csv"))
+    if files:
+        return files[-1]
+    # Se não existir, tenta executar o extrator uma vez
+    print("Arquivo yfinance não encontrado. Executando extrator...")
+    yfinance_markets.run()
     files = sorted(RAW_DATA_DIR.glob("yfinance_markets_*.csv"))
     if not files:
         raise FileNotFoundError(
-            "Nenhum arquivo yfinance_markets_*.csv encontrado em data/raw/. "
-            "Rode: python -m etl.extractors.yfinance_markets"
+            "Não foi possível gerar dados do yfinance. Verifique conexão ou crie fallback."
         )
     return files[-1]
 
-
-def run(input_path: Path | None = None) -> pd.DataFrame:
+def run(input_path: Path | None = None):
     if input_path is None:
-        input_path = find_latest_raw_file()
+        input_path = find_or_fetch_raw_file()
 
     print(f"Lendo {input_path}...")
     df = pd.read_csv(input_path, parse_dates=["date"])
@@ -54,7 +54,7 @@ def run(input_path: Path | None = None) -> pd.DataFrame:
         if subset.empty:
             continue
         rows.append(pd.DataFrame({
-            "country_code": country_code,  # None = indicador global
+            "country_code": country_code,
             "indicator_code": indicator_code,
             "period": subset["date"],
             "period_type": "daily",
@@ -63,14 +63,15 @@ def run(input_path: Path | None = None) -> pd.DataFrame:
             "is_forecast": False,
         }))
 
-    out = pd.concat(rows, ignore_index=True)
+    if not rows:
+        raise ValueError("Nenhum dado de mercado encontrado após transformação.")
 
+    out = pd.concat(rows, ignore_index=True)
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = PROCESSED_DATA_DIR / "markets.parquet"
     out.to_parquet(out_path, index=False)
     print(f"Salvo: {out_path} ({len(out)} linhas)")
     return out
-
 
 if __name__ == "__main__":
     run()
