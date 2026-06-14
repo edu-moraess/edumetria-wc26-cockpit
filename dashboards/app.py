@@ -5,12 +5,10 @@ Entry point Streamlit.
 """
 
 import sys
-import traceback
 from pathlib import Path
 
 import streamlit as st
 
-# Garante que a raiz do projeto está no path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -190,70 +188,56 @@ st.sidebar.markdown(
 # SIDEBAR — BOTÃO ETL
 # ------------------------------------------------------------------
 st.sidebar.markdown(
-    f"<div style='font-family:{THEME['font_family']}; font-size:0.65rem; "
-    f"color:{THEME['secondary']}; text-transform:uppercase; "
+    f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.65rem; "
+    f"color:{THEME[\"secondary\"]}; text-transform:uppercase; "
     f"letter-spacing:0.10em; margin-bottom:0.5rem;'>Pipeline ETL</div>",
     unsafe_allow_html=True,
 )
 
 if st.sidebar.button("↺  Atualizar dados", use_container_width=True):
-    try:
-        from etl import run_pipeline
-        log_box = st.sidebar.empty()
-        logs = []
+    from etl import run_pipeline
 
-        def log(msg):
-            logs.append(str(msg))
-            log_box.code("\n".join(logs[-15:]))
+    log_box = st.sidebar.empty()
+    logs = []
 
-        with st.spinner("Rodando pipeline ETL..."):
+    def log(msg):
+        logs.append(str(msg))
+        log_box.code("\n".join(logs[-15:]))
+
+    with st.spinner("Rodando pipeline ETL..."):
+        try:
             run_pipeline.run(log=log)
             st.sidebar.success("✓ Dados atualizados")
-    except Exception as e:
-        st.sidebar.error(f"Erro no pipeline ETL: {e}")
+        except Exception as e:
+            st.sidebar.error(f"Erro: {e}")
 
-# ------------------------------------------------------------------
-# STATUS DO BANCO DE DADOS (COM TRATAMENTO DE ERRO ROBUSTO)
-# ------------------------------------------------------------------
+# Status do banco
+from database.connection import get_connection, init_schema  # noqa: E402
+
 try:
-    from database.connection import get_connection, init_schema  # noqa: E402
-    
     init_schema()
     with get_connection() as conn:
         count = conn.execute(
             "SELECT COUNT(*) AS n FROM fact_indicator_values"
         ).df()["n"][0]
-        
     if count > 0:
         st.sidebar.markdown(
-            f"<div style='font-family:{THEME['font_family']}; font-size:0.68rem; "
-            f"color:{THEME['positive']};'>✓ {count:,} registros</div>",
+            f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
+            f"color:{THEME[\"positive\"]};'>✓ {count:,} registros</div>",
             unsafe_allow_html=True,
         )
     else:
         st.sidebar.markdown(
-            f"<div style='font-family:{THEME['font_family']}; font-size:0.68rem; "
-            f"color:{THEME['warning']};'>⚠ Banco vazio — atualizar dados</div>",
+            f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
+            f"color:{THEME[\"warning\"]};'>⚠ Banco vazio — atualizar dados</div>",
             unsafe_allow_html=True,
         )
-
-except ImportError as e:
+except Exception:
     st.sidebar.markdown(
-        f"<div style='font-family:{THEME['font_family']}; font-size:0.68rem; "
-        f"color:{THEME['negative']};'>✗ Erro Crítico de Importação</div>",
+        f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
+        f"color:{THEME[\"negative\"]};'>✗ Banco não inicializado</div>",
         unsafe_allow_html=True,
     )
-    st.error("🚨 Erro de Importação Detectado (Ignorando a censura do Streamlit Cloud)")
-    st.code(traceback.format_exc(), language="python")
-    st.info("💡 **Dica:** Verifique se as bibliotecas `duckdb` e `psycopg2-binary` estão listadas no arquivo `requirements.txt` na raiz do seu projeto.")
-
-except Exception as e:
-    st.sidebar.markdown(
-        f"<div style='font-family:{THEME['font_family']}; font-size:0.68rem; "
-        f"color:{THEME['negative']};'>✗ Banco não inicializado</div>",
-        unsafe_allow_html=True,
-    )
-    st.error(f"Erro na execução do banco de dados: {e}")
 
 st.sidebar.markdown(
     f"""
