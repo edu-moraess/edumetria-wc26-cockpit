@@ -22,36 +22,49 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Extrai variáveis do tema para evitar escape de aspas dentro de f-strings
+bg          = THEME["background"]
+surface     = THEME["surface"]
+surface_alt = THEME["surface_alt"]
+border      = THEME["border"]
+primary     = THEME["primary"]
+secondary   = THEME["secondary"]
+text        = THEME["text"]
+text_muted  = THEME["text_muted"]
+positive    = THEME["positive"]
+negative    = THEME["negative"]
+warning     = THEME["warning"]
+font        = THEME["font_family"]
+author      = BRAND["author"]
+
 st.markdown(
     f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600;700&display=swap');
 
         html, body, [class*="css"] {{
-            font-family: {THEME['font_family']};
+            font-family: {font};
         }}
 
         .stApp {{
-            background-color: {THEME['background']};
-            color: {THEME['text']};
+            background-color: {bg};
+            color: {text};
         }}
 
-        /* Sidebar */
         section[data-testid="stSidebar"] {{
-            background-color: {THEME['surface']};
-            border-right: 1px solid {THEME['border']};
+            background-color: {surface};
+            border-right: 1px solid {border};
         }}
 
-        /* Tabs */
         .stTabs [data-baseweb="tab-list"] {{
-            background-color: {THEME['surface']};
-            border-bottom: 1px solid {THEME['border']};
+            background-color: {surface};
+            border-bottom: 1px solid {border};
             gap: 0px;
         }}
         .stTabs [data-baseweb="tab"] {{
             background-color: transparent;
-            color: {THEME['secondary']};
-            font-family: {THEME['font_family']};
+            color: {secondary};
+            font-family: {font};
             font-size: 0.75rem;
             letter-spacing: 0.06em;
             text-transform: uppercase;
@@ -59,102 +72,92 @@ st.markdown(
             padding: 0.5rem 1rem;
         }}
         .stTabs [aria-selected="true"] {{
-            color: {THEME['primary']};
-            border-bottom: 2px solid {THEME['primary']};
+            color: {primary};
+            border-bottom: 2px solid {primary};
             background-color: transparent;
         }}
 
-        /* Selectbox */
         .stSelectbox > div > div {{
-            background-color: {THEME['surface_alt']};
-            border: 1px solid {THEME['border']};
-            color: {THEME['text']};
-            font-family: {THEME['font_family']};
+            background-color: {surface_alt};
+            border: 1px solid {border};
+            color: {text};
+            font-family: {font};
             font-size: 0.82rem;
         }}
 
-        /* Métricas */
         [data-testid="metric-container"] {{
-            background-color: {THEME['surface']};
-            border: 1px solid {THEME['border']};
-            border-left: 3px solid {THEME['primary']};
+            background-color: {surface};
+            border: 1px solid {border};
+            border-left: 3px solid {primary};
             border-radius: 4px;
             padding: 0.75rem 1rem;
         }}
         [data-testid="metric-container"] label {{
-            color: {THEME['secondary']};
-            font-family: {THEME['font_family']};
+            color: {secondary};
+            font-family: {font};
             font-size: 0.68rem;
             text-transform: uppercase;
             letter-spacing: 0.10em;
         }}
         [data-testid="metric-container"] [data-testid="metric-value"] {{
-            color: {THEME['text']};
-            font-family: {THEME['font_family']};
+            color: {text};
+            font-family: {font};
             font-weight: 700;
             font-size: 1.4rem;
         }}
 
-        /* Dataframe */
         .dataframe {{
-            font-family: {THEME['font_family']};
+            font-family: {font};
             font-size: 0.78rem;
         }}
 
-        /* Headings */
         h1, h2, h3, h4 {{
-            font-family: {THEME['font_family']};
+            font-family: {font};
             font-weight: 600;
             letter-spacing: 0.03em;
-            color: {THEME['text']};
+            color: {text};
         }}
         h2 {{ font-size: 1.05rem; }}
-        h3 {{ font-size: 0.9rem; color: {THEME['secondary']}; text-transform: uppercase; letter-spacing: 0.08em; }}
+        h3 {{ font-size: 0.9rem; color: {secondary}; text-transform: uppercase; letter-spacing: 0.08em; }}
 
-        /* Expander */
         .streamlit-expanderHeader {{
-            background-color: {THEME['surface_alt']};
-            border: 1px solid {THEME['border']};
+            background-color: {surface_alt};
+            border: 1px solid {border};
             border-radius: 4px;
-            font-family: {THEME['font_family']};
+            font-family: {font};
             font-size: 0.78rem;
-            color: {THEME['secondary']};
+            color: {secondary};
         }}
 
-        /* Buttons */
         .stButton > button {{
-            background-color: {THEME['surface_alt']};
-            border: 1px solid {THEME['primary']};
-            color: {THEME['primary']};
-            font-family: {THEME['font_family']};
+            background-color: {surface_alt};
+            border: 1px solid {primary};
+            color: {primary};
+            font-family: {font};
             font-size: 0.75rem;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             border-radius: 3px;
-            transition: background-color 0.2s;
         }}
         .stButton > button:hover {{
-            background-color: {THEME['primary']};
-            color: {THEME['background']};
+            background-color: {primary};
+            color: {bg};
         }}
 
-        /* Caption */
         .stCaption {{
-            font-family: {THEME['font_family']};
+            font-family: {font};
             font-size: 0.70rem;
-            color: {THEME['text_muted']};
+            color: {text_muted};
         }}
 
-        /* Info / Warning boxes */
         .stInfo, .stWarning {{
-            font-family: {THEME['font_family']};
+            font-family: {font};
             font-size: 0.78rem;
         }}
 
-        /* Scrollbar */
         ::-webkit-scrollbar {{ width: 4px; height: 4px; }}
-        ::-webkit-scrollbar-track {{ background: {THEME['background']}; }}
-        ::-webkit-scrollbar-thumb {{ background: {THEME['border']}; border-radius: 2px; }}
+        ::-webkit-scrollbar-track {{ background: {bg}; }}
+        ::-webkit-scrollbar-thumb {{ background: {border}; border-radius: 2px; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -165,19 +168,19 @@ st.markdown(
 # ------------------------------------------------------------------
 st.sidebar.markdown(
     f"""
-    <div style="padding-bottom:1rem; border-bottom:1px solid {THEME['border']}; margin-bottom:1rem;">
-        <div style="font-family:{THEME['font_family']}; font-size:0.65rem;
-                    color:{THEME['secondary']}; letter-spacing:0.12em;
+    <div style="padding-bottom:1rem; border-bottom:1px solid {border}; margin-bottom:1rem;">
+        <div style="font-family:{font}; font-size:0.65rem;
+                    color:{secondary}; letter-spacing:0.12em;
                     text-transform:uppercase; margin-bottom:0.3rem;">
             Edumetria Research
         </div>
-        <div style="font-family:{THEME['font_family']}; font-size:1rem;
-                    font-weight:700; color:{THEME['text']}; letter-spacing:0.02em;">
+        <div style="font-family:{font}; font-size:1rem;
+                    font-weight:700; color:{text}; letter-spacing:0.02em;">
             WC26 Cockpit
         </div>
-        <div style="font-family:{THEME['font_family']}; font-size:0.68rem;
-                    color:{THEME['secondary']}; margin-top:0.2rem;">
-            {BRAND['author']}
+        <div style="font-family:{font}; font-size:0.68rem;
+                    color:{secondary}; margin-top:0.2rem;">
+            {author}
         </div>
     </div>
     """,
@@ -188,9 +191,13 @@ st.sidebar.markdown(
 # SIDEBAR — BOTÃO ETL
 # ------------------------------------------------------------------
 st.sidebar.markdown(
-    f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.65rem; "
-    f"color:{THEME[\"secondary\"]}; text-transform:uppercase; "
-    f"letter-spacing:0.10em; margin-bottom:0.5rem;'>Pipeline ETL</div>",
+    f"""
+    <div style="font-family:{font}; font-size:0.65rem;
+                color:{secondary}; text-transform:uppercase;
+                letter-spacing:0.10em; margin-bottom:0.5rem;">
+        Pipeline ETL
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -211,7 +218,9 @@ if st.sidebar.button("↺  Atualizar dados", use_container_width=True):
         except Exception as e:
             st.sidebar.error(f"Erro: {e}")
 
-# Status do banco
+# ------------------------------------------------------------------
+# SIDEBAR — STATUS DO BANCO
+# ------------------------------------------------------------------
 from database.connection import get_connection, init_schema  # noqa: E402
 
 try:
@@ -222,27 +231,30 @@ try:
         ).df()["n"][0]
     if count > 0:
         st.sidebar.markdown(
-            f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
-            f"color:{THEME[\"positive\"]};'>✓ {count:,} registros</div>",
+            f"<div style='font-family:{font}; font-size:0.68rem; "
+            f"color:{positive};'>✓ {count:,} registros</div>",
             unsafe_allow_html=True,
         )
     else:
         st.sidebar.markdown(
-            f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
-            f"color:{THEME[\"warning\"]};'>⚠ Banco vazio — atualizar dados</div>",
+            f"<div style='font-family:{font}; font-size:0.68rem; "
+            f"color:{warning};'>⚠ Banco vazio — atualizar dados</div>",
             unsafe_allow_html=True,
         )
 except Exception:
     st.sidebar.markdown(
-        f"<div style='font-family:{THEME[\"font_family\"]}; font-size:0.68rem; "
-        f"color:{THEME[\"negative\"]};'>✗ Banco não inicializado</div>",
+        f"<div style='font-family:{font}; font-size:0.68rem; "
+        f"color:{negative};'>✗ Banco não inicializado</div>",
         unsafe_allow_html=True,
     )
 
+# ------------------------------------------------------------------
+# SIDEBAR — FOOTER
+# ------------------------------------------------------------------
 st.sidebar.markdown(
     f"""
-    <div style="font-family:{THEME['font_family']}; font-size:0.62rem;
-                color:{THEME['text_muted']}; border-top:1px solid {THEME['border']};
+    <div style="font-family:{font}; font-size:0.62rem;
+                color:{text_muted}; border-top:1px solid {border};
                 padding-top:0.75rem; margin-top:1rem; line-height:1.6;">
         Horizonte: 2026–2035<br>
         🇺🇸 EUA · 🇨🇦 Canadá · 🇲🇽 México<br>
