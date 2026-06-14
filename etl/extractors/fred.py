@@ -1,7 +1,7 @@
 """
 etl/extractors/fred.py
 Extractor de séries macroeconômicas dos EUA via FRED API.
-Requer FRED_API_KEY (Secrets no Streamlit Cloud ou .env local).
+Requer FRED_API_KEY no Streamlit Cloud Secrets ou .env local.
 """
 
 import requests
@@ -20,17 +20,19 @@ from config_secrets import get_secret  # noqa: E402
 FRED_BASE_URL = "https://api.stlouisfed.org/fred/series/observations"
 
 SERIES_OF_INTEREST = {
-    "GDP": "pib_nominal_usd_bn",
-    "GDPC1": "pib_real_chained",
-    "CPIAUCSL": "cpi_inflacao",
-    "UNRATE": "taxa_desemprego",
-    "FEDFUNDS": "fed_funds_rate",
-    "DTWEXBGS": "indice_cambial_usd",
+    "GDP":       "pib_nominal_usd_bn",
+    "GDPC1":     "pib_real_chained",
+    "CPIAUCSL":  "cpi_inflacao",
+    "UNRATE":    "taxa_desemprego",
+    "FEDFUNDS":  "fed_funds_rate",
+    "DTWEXBGS":  "indice_cambial_usd",
+    "GS10":      "treasury_10y",       # Treasury 10 anos — NOVO
+    "GS2":       "treasury_2y",        # Treasury 2 anos — NOVO
 }
 
 
 def fetch_series(series_id: str, api_key: str,
-                  start: str = "2015-01-01", end: str | None = None) -> pd.DataFrame:
+                 start: str = "2015-01-01", end: str | None = None) -> pd.DataFrame:
     if end is None:
         end = date.today().isoformat()
 
@@ -57,18 +59,26 @@ def run(start: str = "2015-01-01"):
     api_key = get_secret("FRED_API_KEY")
     if not api_key:
         raise RuntimeError(
-            "FRED_API_KEY não definida (Secrets do Streamlit Cloud ou .env local)."
+            "FRED_API_KEY não definida. Configure nos Secrets do Streamlit Cloud "
+            "ou no .env local. Obter em: https://fredaccount.stlouisfed.org/apikeys"
         )
 
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     today = date.today().isoformat()
-
     frames = []
+
     for series_id, label in SERIES_OF_INTEREST.items():
         print(f"Baixando {series_id} ({label})...")
-        df = fetch_series(series_id, api_key, start=start)
-        df["indicator_label"] = label
-        frames.append(df)
+        try:
+            df = fetch_series(series_id, api_key, start=start)
+            df["indicator_label"] = label
+            frames.append(df)
+        except Exception as e:
+            print(f"  ⚠️  Erro em {series_id}: {e}")
+
+    if not frames:
+        print("Nenhum dado extraído do FRED.")
+        return None
 
     result = pd.concat(frames, ignore_index=True)
     out_path = RAW_DATA_DIR / f"fred_macro_usa_{today}.csv"
