@@ -1,152 +1,146 @@
-# FIFA World Cup 2026™ — Impact Analytics Platform
+# Edumetria WC26 Cockpit
+### FIFA World Cup 2026™ — Impact Analytics Platform
 
-**Edumetria / Eduardo Moraes | Quant Data Scientist & Economics Researcher**
+**Eduardo Moraes · Quant Data Scientist & Economics Researcher · Edumetria**
 
-Plataforma analítica para monitoramento, modelagem e projeção dos impactos
-macroeconômicos, geopolíticos, financeiros e sociais da Copa do Mundo FIFA
-2026™ (EUA · Canadá · México), horizonte 2026-2035.
+[
 
-Este README documenta a **arquitetura de deploy** (estrutura de pastas,
-data layer, ETL, dashboard). Conteúdo analítico (white paper, auditoria
-das projeções FIFA, modelagem econométrica, Monte Carlo, WCLI) será
-entregue em módulos subsequentes e plugado nesta estrutura.
+![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)
+
+](https://edumetriaquant.streamlit.app)
+
+Plataforma analítica institucional para monitoramento, análise e projeção
+dos impactos macroeconômicos, financeiros, geopolíticos e sociais da
+Copa do Mundo FIFA 2026™ (EUA · Canadá · México), horizonte 2026–2035.
+
+Qualidade equivalente a projetos de pesquisa de IMF, World Bank, Goldman
+Sachs Research e bancos centrais — com transparência total de metodologia,
+limitações e premissas.
 
 ---
 
-## 1. Estrutura de Pastas
+## Dashboard ao vivo
 
-```
-fifa2026/
-├── config.py                  # configuração central (paths, tema, baseline FIFA, WCLI)
+**[edumetriaquant.streamlit.app](https://edumetriaquant.streamlit.app)**
+
+---
+
+## Páginas
+
+| # | Página | Dados reais | Status |
+|---|--------|------------|--------|
+| 1 | Executive Overview | Turismo (CAN/MEX), snapshot de mercado | ✅ |
+| 2 | Macroeconomia | FRED (PIB, CPI, juros, desemprego, yield spread) | ✅ |
+| 3 | Turismo | StatCan (Canadá) · Banxico (México) | ✅ |
+| 4 | Aviação | WTI como proxy de custo de combustível | ✅ parcial |
+| 5 | Hotelaria | — (STR Global, fonte paga) | ⏳ |
+| 6 | Mercado Financeiro | yfinance (índices, ETFs, drawdown, correlação, vol.) | ✅ |
+| 7 | Geopolítica | WTI, Brent, VIX, World Cup Risk Score | ✅ |
+| 8 | ESG | — (dados de emissões pendentes) | ⏳ |
+| 9 | Forecast Center | Monte Carlo 20k simulações (bootstrap paramétrico) | ✅ |
+
+---
+
+## Fontes de dados
+
+| Fonte | Cobertura | Custo |
+|-------|-----------|-------|
+| FRED (Federal Reserve) | Macro EUA: PIB, CPI, juros, câmbio, Treasuries | Grátis |
+| Yahoo Finance (yfinance) | Índices, ETFs, WTI, Brent, VIX | Grátis |
+| Statistics Canada (StatCan) | Turismo e macro Canadá | Grátis |
+| Banxico SIE | Turismo México | Grátis (token) |
+| INEGI | Macro México | Grátis (token) |
+| STR Global / OAG / IATA | Hotelaria e aviação | Pago — fase pós-MVP |
+
+---
+
+## Modelos implementados
+
+- **World Cup Risk Score (0–100)** — percentil histórico de VIX,
+  choque no petróleo (WTI vs. média 252d) e volatilidade cambial (FX Index)
+- **World Cup Legacy Index (WCLI)** — índice composto ponderado
+  (componente turismo ativo; PIB/Emprego/FDI/Infra/ESG pendentes)
+- **Monte Carlo (20.000 simulações)** — bootstrap paramétrico com
+  distribuições históricas (PIB, CPI, desemprego EUA; turismo CAN/MEX)
+- **Yield Spread 10Y–2Y** — indicador derivado (FRED), integrado
+  à análise de risco de recessão pré-Copa
+
+---
+
+## Arquitetura
+
+edumetria-wc26-cockpit/
+├── config.py               # configuração central (tema quant, baseline FIFA, WCLI)
+├── config_secrets.py       # helper st.secrets ↔ os.getenv
 ├── requirements.txt
+│
 ├── data/
-│   ├── raw/                    # dados brutos, imutáveis, como recebidos das fontes
-│   ├── processed/               # dados limpos/transformados, prontos para modelagem
-│   └── external/                 # dados de terceiros (Tourism Economics, STR, FRED, etc.)
+│   ├── raw/                # snapshots imutáveis das fontes
+│   ├── processed/          # dados normalizados (parquet)
+│   └── external/           # datasets de terceiros
+│
 ├── database/
-│   ├── schema.sql               # esquema do Data Warehouse (dimensões + fatos)
-│   └── connection.py             # abstração DuckDB (dev) / Postgres (produção)
+│   ├── schema.sql          # star schema (dim_* + fact_*)
+│   └── connection.py       # DuckDB (dev) / Postgres (produção)
+│
 ├── etl/
-│   ├── extractors/               # coleta de dados de cada fonte (1 módulo por fonte)
-│   ├── transformers/             # limpeza, normalização, cálculo de indicadores derivados
-│   └── loaders/                  # carga no Data Warehouse (fact tables)
+│   ├── extractors/         # 1 módulo por fonte (fred, yfinance, statcan, banxico, inegi)
+│   ├── transformers/       # limpeza, normalização, indicadores derivados
+│   ├── loaders/            # carga no DW (truncate + reload — sem duplicação)
+│   └── run_pipeline.py     # orquestrador (chamado pelo botão do dashboard)
+│
 ├── models/
-│   ├── econometric/              # I-O, SAM, CGE, DiD, Synthetic Control, GARCH-X, DCC
-│   ├── ml/                       # XGBoost, LightGBM, Prophet, LSTM
-│   └── montecarlo/                # simulação de cenários (100k+ runs), EVT
-├── api/                          # FastAPI — endpoints para servir dados/forecasts
+│   ├── econometric/        # I-O, contrafactual, GARCH-X, Ridge-VAR (fase pós-MVP)
+│   ├── ml/                 # XGBoost, LightGBM, Prophet, LSTM (fase pós-MVP)
+│   └── montecarlo/         # Risk Score, WCLI, simulação, FIFA Auditor
+│
+├── metadata/
+│   └── data_dictionary.py  # catálogo completo de indicadores
+│
 ├── dashboards/
-│   ├── app.py                    # entry point Streamlit (navegação + tema)
-│   ├── components.py             # componentes de UI reutilizáveis (KPI cards, tema Plotly)
-│   └── pages/                    # 9 páginas (Executive Overview → Forecast Center)
-├── notebooks/                    # exploração, prototipagem de modelos
+│   ├── app.py              # entry point Streamlit (tema quant, navegação, ETL)
+│   ├── components.py       # KPI cards, apply_theme() subplot-safe
+│   └── pages/              # 9 páginas (01_executive_overview → 09_forecast_center)
+│
 ├── deployment/
-│   ├── docker/                   # Dockerfile + docker-compose (app + Postgres + ETL)
-│   └── streamlit_cloud/          # config.toml + guia de deploy via Streamlit Community Cloud
-└── tests/                         # testes unitários (pytest)
-```
+│   ├── docker/             # Dockerfile + docker-compose
+│   └── streamlit_cloud/    # config.toml + guia de deploy
+│
+└── tests/                  # pytest (em desenvolvimento)
 
-### Função de cada diretório
-
-- **data/raw**: snapshot imutável dos dados como chegam das fontes (CSV, JSON, XLSX). Nunca editado manualmente — serve de trilha de auditoria.
-- **data/processed**: saída dos `transformers`, já normalizada (unidades consistentes, períodos alinhados), pronta para carga no DW ou consumo direto por modelos.
-- **data/external**: datasets de terceiros baixados (Tourism Economics, STR Global, FRED, Goldman Sachs Research, NBER, Brookings) — versionados separadamente por licença/fonte.
-- **database**: define e gerencia o Data Warehouse. `schema.sql` é a fonte única de verdade do modelo de dados (star schema: `dim_*` + `fact_*`). `connection.py` permite trocar DuckDB ↔ Postgres via variável de ambiente sem alterar código de negócio.
-- **etl/extractors**: um módulo por fonte externa (ex: `fred.py`, `str_global.py`, `tourism_economics.py`, `yfinance_markets.py`). Cada extractor escreve em `data/raw/`.
-- **etl/transformers**: lógica de limpeza, conversão de unidades, alinhamento temporal, cálculo de indicadores derivados (ex: PIB incremental líquido = bruto − contrafactual). Escreve em `data/processed/`.
-- **etl/loaders**: carrega `data/processed/` nas tabelas `fact_*` do Data Warehouse, com versionamento (`fact_indicator_values.version`).
-- **models/econometric**: implementações de Input-Output, SAM, CGE, DiD/Synthetic Control/Event Study/Local Projections (contrafactual), e os modelos GARCH-X/DCC/EVT reaproveitados do Macro Geopolítico Model.
-- **models/ml**: ensembles XGBoost/LightGBM/Prophet/LSTM para forecast 2027-2035.
-- **models/montecarlo**: motor de simulação (≥100k runs), cálculo de WCLI por cenário, EVT para tail risk.
-- **api**: FastAPI servindo os resultados (dashboards podem consumir via API em vez de acesso direto ao DW, facilitando futura integração com outros consumidores — ex: posts institucionais automatizados).
-- **dashboards**: aplicação Streamlit. `app.py` define tema/navegação; `pages/` contém as 9 páginas do wireframe; `components.py` centraliza KPI cards e o wrapper de tema Plotly (subplot-safe).
-- **deployment**: Dockerfile + compose para ambiente completo (app + Postgres + worker ETL), e guia de deploy gratuito via Streamlit Community Cloud (recomendado para o MVP).
-- **tests**: testes unitários para ETL, modelos e cálculo do WCLI.
 
 ---
 
-## 2. Arquitetura de Dados
-
-```
-Fontes externas (FIFA, Tourism Economics, STR Global, FRED, Goldman Sachs,
-NBER, Brookings, yfinance, BCB/SGS, Banxico, StatCan)
-        │
-        ▼
-  data/raw/  ──extractors──►  (snapshot imutável, versionado por data)
-        │
-        ▼
-  etl/transformers  (limpeza, normalização, indicadores derivados,
-                      cálculo de impacto líquido/contrafactual)
-        │
-        ▼
-  data/processed/
-        │
-        ▼
-  etl/loaders  ──►  database (DuckDB dev / Postgres produção)
-        │                 │
-        │                 ├── dim_country, dim_city, dim_indicator,
-        │                 │   dim_source, dim_scenario
-        │                 ├── fact_indicator_values  (séries observadas + forecast)
-        │                 ├── fact_wcli              (WCLI por país/cenário/período)
-        │                 ├── fact_montecarlo_*      (distribuições de simulação)
-        │                 └── audit_fifa_projections (auditoria das estimativas FIFA)
-        │
-        ▼
-  models/ (econometric, ml, montecarlo)  ──► grava forecasts em fact_indicator_values
-        │                                     (is_forecast=TRUE, confidence_low/high)
-        ▼
-  dashboards/app.py  (Streamlit, 9 páginas)  ◄── api/ (FastAPI, opcional)
-```
-
-**Versionamento**: toda linha em `fact_*` tem campo `version` e
-`ingested_at`. Atualizações não sobrescrevem — incrementam a versão,
-preservando histórico para auditoria (ex: revisão de premissas FIFA).
-
-**Atualizações automáticas**: pipeline ETL roda via cron (GitHub Actions
-ou worker dedicado) → atualiza `database/fifa2026.duckdb` (ou Postgres) →
-dashboard reflete automaticamente (DuckDB local) ou via API (Postgres).
-
----
-
-## 3. Como executar localmente
+## Como executar localmente
 
 ```bash
 # 1. Instalar dependências
 pip install -r requirements.txt
 
-# 2. Inicializar o banco de dados (DuckDB por padrão)
+# 2. Configurar variáveis de ambiente
+cp .env.example .env
+# Editar .env com suas chaves de API
+
+# 3. Inicializar schema do banco
 python database/connection.py
 
-# 3. Rodar o dashboard
+# 4. Rodar o pipeline ETL (baixa dados das APIs)
+python -m etl.run_pipeline
+
+# 5. Iniciar o dashboard
 streamlit run dashboards/app.py
-```
 
----
+Deploy (Streamlit Cloud)
+Fork ou clone este repositório
+Em share.streamlit.io, aponte para dashboards/app.py
+Em Settings → Secrets, adicione:
 
-## 4. Roadmap de Implementação (próximas entregas)
+FIFA2026_DB_BACKEND = "duckdb"
+FRED_API_KEY        = "sua_chave_fred"
+BANXICO_TOKEN       = "seu_token_banxico"
+INEGI_TOKEN         = "seu_token_inegi"
 
-| Módulo | Conteúdo | Status |
-|---|---|---|
-| Estrutura de deploy | Pastas, config, schema, app Streamlit (9 páginas), Docker, Streamlit Cloud | ✅ Concluído |
-| White paper | Executive summary, auditoria FIFA, metodologia (I-O/SAM/CGE/contrafactual), comparação histórica | ⏳ Próxima entrega |
-| ETL — extractors | FRED, Tourism Economics, STR Global, yfinance, BCB/SGS, Banxico, StatCan | ⏳ Pendente |
-| Modelagem econométrica | GARCH-X/DCC (reaproveitado), DiD/Synthetic Control, Ridge-VAR geopolítico | ⏳ Pendente |
-| Monte Carlo + WCLI | Motor de simulação (100k runs), cálculo WCLI por país/cenário | ⏳ Pendente |
-| ML Forecast | XGBoost, LightGBM, Prophet, LSTM ensemble | ⏳ Pendente |
-| API FastAPI | Endpoints de série/forecast/WCLI | ⏳ Pendente |
-| Automação | GitHub Actions cron para ETL diário | ⏳ Pendente |
-
----
-
-## 5. Sistema de Alertas (proposta — a implementar)
-
-Alertas configuráveis via `fact_indicator_values` + thresholds em
-`config.py`:
-
-- **Geopolítico**: GeoFactor Index cruza limiar de regime de estresse → notificação.
-- **Mercado**: VIX > threshold ou CAR setorial fora do intervalo de confiança Monte Carlo.
-- **Macro**: revisão de PIB/inflação projetado vs. realizado acima de X p.p.
-- **Auditoria**: nova versão de projeção FIFA divergente >Y% da versão anterior em `audit_fifa_projections`.
-
-Canal de entrega: e-mail (via API) ou painel dedicado no Streamlit
-("Alert Center" — candidato a 10ª página se necessário).
+Clique "↺ Atualizar dados" na sidebar do app para popular o banco
+Nota: o DuckDB no Streamlit Cloud é efêmero — os dados são
+recarregados a cada restart do app. Para persistência entre sessões,
+migrar para Postgres gerenciado (Supabase / Neon free tier).
