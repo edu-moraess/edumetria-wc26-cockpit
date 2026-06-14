@@ -2,9 +2,9 @@
 etl/extractors/yfinance_markets.py
 Extractor principal de dados de mercado via yfinance.
 
-CORREÇÃO v2:
-- Fix para yfinance >= 0.2.40 que retorna MultiIndex columns
-- auto_adjust=True para preços ajustados por padrão
+CORREÇÃO v3:
+- Levanta RuntimeError se nenhum dado for baixado (para o pipeline saber da falha)
+- Fix para yfinance >= 0.2.40 MultiIndex
 """
 
 import sys
@@ -18,7 +18,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from config import RAW_DATA_DIR  # noqa: E402
+from config import RAW_DATA_DIR
 
 TICKERS = {
     "^GSPC":  "sp500_usa",
@@ -51,7 +51,7 @@ def _download_ticker(ticker: str, start: str) -> pd.DataFrame | None:
 
 def run(start: str = "2015-01-01"):
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    today  = date.today().isoformat()
+    today = date.today().isoformat()
     frames = []
 
     for ticker, label in TICKERS.items():
@@ -60,16 +60,15 @@ def run(start: str = "2015-01-01"):
         if df is None:
             print(f"  ⚠️  Sem dados para {ticker}, pulando.")
             continue
-        df["ticker"]          = ticker
+        df["ticker"] = ticker
         df["indicator_label"] = label
         frames.append(df)
         print(f"  → {len(df)} observações")
 
     if not frames:
-        print("Nenhum dado extraído.")
-        return None
+        raise RuntimeError("Nenhum dado financeiro baixado. Verifique conexão com Yahoo Finance ou tickers.")
 
-    result   = pd.concat(frames, ignore_index=True)
+    result = pd.concat(frames, ignore_index=True)
     out_path = RAW_DATA_DIR / f"yfinance_markets_{today}.csv"
     result.to_csv(out_path, index=False)
     print(f"\nSalvo: {out_path} ({len(result):,} linhas)")
