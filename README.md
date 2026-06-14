@@ -1,218 +1,205 @@
 Edumetria WC26 Cockpit
 
-FIFA World Cup 2026™ — Impact Analytics Platform
+FIFA World Cup 2026™ Economic, Financial & Geopolitical Analytics Platform
 
-Eduardo MoraesQuantitative Data Scientist · Economics Researcher · Edumetria
+Eduardo Moraes
+Quantitative Data Scientist · Economics Researcher · Systems & Control Engineering Student
 
+""Streamlit App" (https://static.streamlit.io/badges/streamlit_badge_black_white.svg)" (https://edumetriaquant.streamlit.app)
 
+---
 
-Plataforma analítica para monitoramento, análise e projeção dos impactos econômicos, financeiros, geopolíticos e setoriais associados à Copa do Mundo FIFA 2026™, sediada por Estados Unidos, Canadá e México.
+Executive Summary
 
-O projeto integra dados públicos de instituições governamentais, bancos centrais e mercados financeiros para construção de indicadores proprietários, cenários prospectivos e modelos quantitativos voltados à avaliação de riscos, oportunidades e efeitos de legado do evento.
+The Edumetria WC26 Cockpit is a quantitative analytics platform designed to monitor, analyze and project the potential economic, financial, geopolitical and sectoral impacts associated with the FIFA World Cup 2026™, hosted by the United States, Canada and Mexico.
 
-Horizonte Analítico: 2026–2035
+The platform integrates public datasets from central banks, national statistical agencies and global financial markets to build proprietary indicators, risk monitoring frameworks and forward-looking economic scenarios.
 
-Dashboard
+The project combines:
 
-Acesse:
+- Data Engineering
+- Quantitative Analytics
+- Applied Economics
+- Risk Modeling
+- Forecasting
+- Data Visualization
+
+within a fully reproducible analytical environment.
+
+Analysis Horizon: 2026–2035
+
+---
+
+Research Motivation
+
+Mega sporting events are often associated with expectations regarding:
+
+- Economic growth
+- Tourism expansion
+- Infrastructure development
+- Labor market effects
+- Foreign investment attraction
+- Long-term economic legacy
+
+However, empirical evidence frequently shows mixed results.
+
+The purpose of this project is to provide a transparent and reproducible framework for analyzing these potential impacts using real-world data, quantitative methods and clearly documented assumptions.
+
+---
+
+Live Dashboard
+
+Production Environment
 
 https://edumetriaquant.streamlit.app
 
-Objetivos
+---
 
-Monitorar indicadores macroeconômicos dos países-sede
+Analytical Framework
 
-Avaliar impactos potenciais sobre turismo, mercado financeiro e infraestrutura
+The platform is organized into four analytical pillars.
 
-Construir métricas quantitativas de risco e legado econômico
+Economic Monitoring
 
-Disponibilizar análises transparentes, reproduzíveis e auditáveis
+Monitoring macroeconomic conditions across host countries.
 
-Desenvolver um laboratório aplicado de Data Science, Economia e Sistemas Quantitativos
+Financial Markets Monitoring
 
-Módulos do Dashboard
+Tracking market performance, volatility and investor sentiment.
 
-Página
+Geopolitical & Risk Monitoring
 
-Descrição
+Assessing global uncertainty and macro-financial stress conditions.
 
-Status
+Forecasting & Scenario Analysis
 
-Executive Overview
+Building probabilistic projections and forward-looking scenarios.
 
-Visão executiva dos principais indicadores
+---
 
-✅
+Dashboard Modules
 
-Macroeconomia
+Module| Description| Status
+Executive Overview| Executive summary of key indicators| ✅
+Macroeconomics| GDP, CPI, interest rates, unemployment and yield curve| ✅
+Tourism Analytics| Tourism flows and sector monitoring| ✅
+Aviation Monitor| Energy and aviation-related indicators| ✅ Partial
+Hospitality Analytics| Hotel occupancy and accommodation indicators| 🚧
+Financial Markets| Indices, ETFs, volatility, drawdowns and correlations| ✅
+Geopolitical Monitor| Global risk and uncertainty indicators| ✅
+ESG Dashboard| Sustainability and environmental indicators| 🚧
+Forecast Center| Monte Carlo simulations and scenario analysis| ✅
 
-PIB, inflação, juros, desemprego e curva de juros
+---
 
-✅
+Data Sources
 
-Turismo
+Macroeconomic Data
 
-Fluxo turístico e indicadores setoriais
+- Federal Reserve Economic Data (FRED)
+- Statistics Canada (StatCan)
+- Banco de México (Banxico)
+- Instituto Nacional de Estadística y Geografía (INEGI)
 
-✅
+Financial Markets
 
-Aviação
+- Yahoo Finance
+- Treasury Market Data
 
-Custos energéticos e proxies operacionais
+Energy Markets
 
-✅ Parcial
+- West Texas Intermediate (WTI)
+- Brent Crude Oil
 
-Hotelaria
+Future Integrations
 
-Indicadores de ocupação e receita
+- International Monetary Fund (IMF)
+- World Bank
+- OECD
+- IATA
+- OAG
+- STR Global
 
-🚧 Em desenvolvimento
+---
 
-Mercado Financeiro
-
-Índices, ETFs, volatilidade e correlações
-
-✅
-
-Geopolítica
-
-Indicadores de risco global e energia
-
-✅
-
-ESG
-
-Indicadores ambientais e sustentabilidade
-
-🚧 Em desenvolvimento
-
-Forecast Center
-
-Simulações e cenários prospectivos
-
-✅
-
-Fontes de Dados
-
-Fonte
-
-Aplicação
-
-FRED (Federal Reserve Economic Data)
-
-Indicadores macroeconômicos dos EUA
-
-Yahoo Finance (yfinance)
-
-Mercados financeiros e commodities
-
-Statistics Canada (StatCan)
-
-Dados econômicos e turísticos do Canadá
-
-Banxico SIE
-
-Indicadores econômicos e turismo do México
-
-INEGI
-
-Estatísticas econômicas mexicanas
-
-World Bank (Roadmap)
-
-Indicadores estruturais e comparativos
-
-IMF Data (Roadmap)
-
-Séries macroeconômicas globais
-
-STR Global (Planejado)
-
-Hotelaria
-
-IATA / OAG (Planejado)
-
-Aviação
-
-Indicadores Proprietários
+Quantitative Models
 
 World Cup Risk Score (WCRS)
 
-Índice sintético de risco baseado em:
+Proprietary framework designed to monitor global macro-financial stress through:
 
-Volatilidade implícita (VIX)
+- Volatility indicators
+- Energy market conditions
+- Financial market dynamics
 
-Choques nos preços do petróleo
-
-Volatilidade cambial
-
-Normalização por percentis históricos
-
-Escala:
-
-0–33 → Baixo risco
-
-34–66 → Risco moderado
-
-67–100 → Alto risco
+---
 
 World Cup Legacy Index (WCLI)
 
-Índice de legado econômico estruturado para incorporar:
+Experimental composite framework designed to assess potential long-term economic legacy effects associated with the tournament.
 
-Turismo
+Current implementation focuses primarily on tourism metrics, with future expansion planned for:
 
-Crescimento econômico
+- GDP
+- Employment
+- Foreign Direct Investment (FDI)
+- Infrastructure
+- ESG metrics
 
-Emprego
+---
 
-Investimento estrangeiro direto (FDI)
+Monte Carlo Forecast Engine
 
-Infraestrutura
+The Forecast Center currently implements:
 
-Sustentabilidade (ESG)
+- Parametric Bootstrap
+- Monte Carlo Simulation
+- Historical Volatility Modeling
 
-Atualmente em fase de expansão metodológica.
+Current configuration:
 
-Modelagem Quantitativa
+- 20,000 simulations
+- Percentile analysis
+- Scenario distributions
+- Probabilistic forecasting
 
-Implementado
+---
 
-Monte Carlo Simulation (20.000 cenários)
+Yield Curve Monitor
 
-Bootstrap Paramétrico
+Monitoring of Treasury yield spreads as an early-warning macroeconomic indicator.
 
-Yield Spread Analysis (10Y–2Y)
+Current implementation:
 
-Risk Scoring Framework
+- 10Y–2Y Spread
+- Recession Risk Assessment
 
-Drawdown Analysis
+---
 
-Volatility Monitoring
+Forecast Center Methodology
 
-Correlation Analysis
+The current forecasting framework is designed as a transparent MVP architecture.
 
-Roadmap
+Implemented
 
-VAR / Ridge-VAR
+- Historical growth distributions
+- Parametric bootstrap simulations
+- Confidence interval generation
+- Percentile forecasting
 
-GARCH-X
+Current Limitations
 
-Difference-in-Differences
+- Assumes normality of increments
+- Does not model regime changes
+- Does not include extreme-tail events
+- Does not incorporate exogenous World Cup shocks
+- Does not model cross-country dependencies
 
-Synthetic Control
+All limitations are explicitly documented to ensure methodological transparency.
 
-Input-Output Models
+---
 
-XGBoost
-
-LightGBM
-
-Prophet
-
-LSTM
-
-Arquitetura
+Technical Architecture
 
 edumetria-wc26-cockpit/
 │
@@ -253,52 +240,163 @@ edumetria-wc26-cockpit/
 │
 └── tests/
 
-Execução Local
+---
 
-pip install -r requirements.txt
+Data Pipeline
 
-cp .env.example .env
+External APIs
+      │
+      ▼
+   Extract
+      │
+      ▼
+  Transform
+      │
+      ▼
+     Load
+      │
+      ▼
+Data Warehouse
+      │
+      ▼
+Quant Models
+      │
+      ▼
+ Dashboard
 
-python database/connection.py
+---
 
-python -m etl.run_pipeline
+Research Roadmap
 
-streamlit run dashboards/app.py
+Econometrics & Causal Inference
 
-Deploy
+Planned future implementations:
 
-Streamlit Cloud
+- Difference-in-Differences (DiD)
+- Synthetic Control
+- Event Studies
+- Ridge VAR
+- GARCH-X
+- Local Projections
+- Input-Output Models
 
-Configurar os seguintes Secrets:
+---
 
-FIFA2026_DB_BACKEND = "duckdb"
+Machine Learning
 
-FRED_API_KEY = "your_key"
+Planned future implementations:
 
-BANXICO_TOKEN = "your_token"
+- XGBoost
+- LightGBM
+- Prophet
+- LSTM
 
-INEGI_TOKEN = "your_token"
+---
 
-Após o deploy, utilize a opção Atualizar Dados para executar o pipeline ETL diretamente pela interface.
+Risk Analytics
 
-Limitações
+Planned future implementations:
 
-Parte dos indicadores setoriais ainda depende de bases pagas.
+- Extreme Value Theory (EVT)
+- Stress Testing
+- Regime Switching Models
+- Scenario Analysis
+- Sovereign Risk Monitoring
 
-O projeto não constitui recomendação de investimento.
+---
 
-Resultados de simulações dependem das premissas adotadas.
+Legacy Impact Assessment
 
-Algumas métricas encontram-se em fase experimental.
+Future research modules:
 
-Licença
+- Historical World Cup Benchmarking
+- Counterfactual Analysis
+- Infrastructure Impact Assessment
+- Tourism Legacy Analysis
+- Foreign Investment Impact Analysis
 
-MIT License
+---
 
-Autor
+Methodological Principles
+
+The project follows the following principles:
+
+- Transparency
+- Reproducibility
+- Auditability
+- Explicit Assumptions
+- Documented Limitations
+
+Results should not be interpreted as investment advice, official forecasts or policy recommendations.
+
+---
+
+Project Status
+
+Current Stage
+
+MVP Completed
+
+✅ Data Ingestion
+
+✅ ETL Pipeline
+
+✅ Data Warehouse
+
+✅ Quantitative Dashboard
+
+✅ Forecast Center
+
+✅ Proprietary Indicators
+
+✅ Risk Monitoring Framework
+
+---
+
+Under Development
+
+🚧 Econometric Models
+
+🚧 Causal Inference Frameworks
+
+🚧 Counterfactual Analysis
+
+🚧 Legacy Impact Estimation
+
+🚧 Advanced Risk Analytics
+
+---
+
+Future Vision
+
+The long-term objective is to evolve the platform into a research-grade analytical environment for:
+
+- Economic Impact Assessment
+- Risk Analytics
+- Applied Econometrics
+- Policy Evaluation
+- Mega-Event Economics
+
+inspired by analytical frameworks commonly used by central banks, multilateral organizations and economic research institutions.
+
+---
+
+Author
 
 Eduardo Moraes
 
-Quantitative Data Scientist · Economics Researcher
+Quantitative Data Scientist
 
-Projeto independente de pesquisa aplicada em Economia, Data Science e Sistemas Quantitativos voltados à Copa do Mundo FIFA 2026™.
+Economics Researcher
+
+Systems & Control Engineering Student
+
+Independent Research Project
+
+---
+
+Disclaimer
+
+FIFA World Cup 2026™ is a trademark of FIFA.
+
+This project is an independent academic and analytical initiative and is not affiliated with, endorsed by or sponsored by FIFA.
