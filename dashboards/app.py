@@ -270,15 +270,16 @@ st.sidebar.markdown(
 PAGES_DIR = Path(__file__).resolve().parent / "pages"
 
 pages = [
-    st.Page(PAGES_DIR / "01_executive_overview.py", title="Executive Overview", icon="🏠", default=True),
-    st.Page(PAGES_DIR / "02_macroeconomia.py",       title="Macroeconomia",      icon="📈"),
-    st.Page(PAGES_DIR / "03_turismo.py",              title="Turismo",            icon="🧳"),
-    st.Page(PAGES_DIR / "04_aviacao.py",              title="Aviação",            icon="✈️"),
-    st.Page(PAGES_DIR / "05_hotelaria.py",            title="Hotelaria",          icon="🏨"),
-    st.Page(PAGES_DIR / "06_mercado_financeiro.py",   title="Mercado Financeiro", icon="💹"),
-    st.Page(PAGES_DIR / "07_geopolitica.py",          title="Geopolítica",        icon="🌍"),
-    st.Page(PAGES_DIR / "08_esg.py",                  title="ESG",                icon="🌱"),
-    st.Page(PAGES_DIR / "09_forecast_center.py",      title="Forecast Center",    icon="🔮"),
+    st.Page(PAGES_DIR / "01_executive_overview.py",  title="Executive Overview",  icon="🏠", default=True),
+    st.Page(PAGES_DIR / "02_macroeconomia.py",        title="Macroeconomia",       icon="📈"),
+    st.Page(PAGES_DIR / "03_turismo.py",              title="Turismo",             icon="🧳"),
+    st.Page(PAGES_DIR / "04_aviacao.py",              title="Aviação",             icon="✈️"),
+    st.Page(PAGES_DIR / "05_hotelaria.py",            title="Hotelaria",           icon="🏨"),
+    st.Page(PAGES_DIR / "06_mercado_financeiro.py",   title="Mercado Financeiro",  icon="💹"),
+    st.Page(PAGES_DIR / "07_geopolitica.py",          title="Geopolítica",         icon="🌍"),
+    st.Page(PAGES_DIR / "08_esg.py",                  title="ESG",                 icon="🌱"),
+    st.Page(PAGES_DIR / "09_forecast_center.py",      title="Forecast Center",     icon="🔮"),
+    st.Page(PAGES_DIR / "10_recession_monitor.py",    title="Recession Monitor",   icon="🚨"),
 ]
 
 nav = st.navigation(pages)
