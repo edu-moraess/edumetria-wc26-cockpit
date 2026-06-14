@@ -36,7 +36,7 @@ def get_connection():
         raise ValueError(f"Backend de banco de dados desconhecido: {DB_BACKEND}")
 
 
-def init_db():
+def init_schema():
     """
     Lê o schema.sql e inicializa as tabelas no banco de dados.
     """
@@ -59,5 +59,8 @@ def init_db():
     conn.close()
 
 
+# Alias para garantir retrocompatibilidade caso seja necessário
+init_db = init_schema
+
 if __name__ == "__main__":
-    init_db()
+    init_schema()
