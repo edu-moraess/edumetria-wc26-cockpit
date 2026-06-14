@@ -1,0 +1,22 @@
+name: Update Yahoo Finance Data
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # toda segunda-feira às 9h UTC
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m etl.extractors.yfinance_markets
+      - run: python -m etl.transformers.clean_markets
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: atualizar dados de mercado (yfinance)"
+          file_pattern: "data/raw/yfinance_markets_*.csv data/processed/markets.parquet"
