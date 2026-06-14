@@ -1,11 +1,10 @@
 """
-etl/loaders/load_indicators.py - Versão Final Robusta
+etl/loaders/load_indicators.py - Versão Final Robusta (14/06/2026)
 """
 
 import sys
 from pathlib import Path
 import pandas as pd
-import time
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -14,7 +13,6 @@ if str(ROOT_DIR) not in sys.path:
 from config import PROCESSED_DATA_DIR
 from database.connection import get_connection, init_schema
 
-# Catálogo mantido
 INDICATOR_CATALOG = [
     ("GDP_NOMINAL", "PIB Nominal (EUA)", "USD_BN", "macro"),
     ("GDP_REAL", "PIB Real Encadeado", "INDEX", "macro"),
@@ -29,7 +27,7 @@ INDICATOR_CATALOG = [
     ("YIELD_SPREAD_10Y3M", "Yield Spread 10Y–3M", "PERCENT", "macro"),
     ("SAHM_RULE", "Sahm Rule", "PERCENT", "macro"),
     ("LEADING_INDEX", "Leading Economic Index", "INDEX", "macro"),
-    ("RECESSION_PROB", "Prob. Recessão", "PERCENT", "macro"),
+    ("RECESSION_PROB", "Prob. Recessão Fed NY", "PERCENT", "macro"),
     ("SOFR_RATE", "SOFR", "PERCENT", "financeiro"),
     ("HY_SPREAD", "High Yield Spread", "PERCENT", "financeiro"),
     ("MOVE_INDEX", "MOVE Index", "INDEX", "financeiro"),
@@ -60,9 +58,17 @@ KNOWN_CODES = {row[0] for row in INDICATOR_CATALOG}
 def ensure_dims(conn):
     tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").df()["name"].tolist()
     if "dim_indicator" not in tables:
-        conn.execute("CREATE TABLE IF NOT EXISTS dim_indicator (indicator_code TEXT PRIMARY KEY, name TEXT, unit TEXT, category TEXT)")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dim_indicator (
+                indicator_code TEXT PRIMARY KEY, name TEXT, unit TEXT, category TEXT
+            )
+        """)
     if "dim_source" not in tables:
-        conn.execute("CREATE TABLE IF NOT EXISTS dim_source (source_id INTEGER PRIMARY KEY, source_name TEXT, type TEXT, tier TEXT)")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dim_source (
+                source_id INTEGER PRIMARY KEY, source_name TEXT, type TEXT, tier TEXT
+            )
+        """)
     for code, name, unit, cat in INDICATOR_CATALOG:
         conn.execute("INSERT OR IGNORE INTO dim_indicator VALUES (?, ?, ?, ?)", [code, name, unit, cat])
     for sid, name, typ, tier in SOURCE_CATALOG:
@@ -84,7 +90,10 @@ def load_processed_file(conn, path: Path, next_id: int) -> int:
     df = pd.read_parquet(path)
     df = df.dropna(subset=["value"])
     df = df[df["indicator_code"].isin(KNOWN_CODES)].copy()
-    df["source_id"] = df.get("source_name", "yfinance").map(SOURCE_NAME_TO_ID)
+    
+    if "source_name" not in df.columns:
+        df["source_name"] = "yfinance"
+    df["source_id"] = df["source_name"].map(SOURCE_NAME_TO_ID)
     df = df.dropna(subset=["source_id"])
     df["source_id"] = df["source_id"].astype(int)
 
@@ -93,12 +102,20 @@ def load_processed_file(conn, path: Path, next_id: int) -> int:
     df = df.reset_index(drop=True)
     df["id"] = range(next_id, next_id + len(df))
 
-    cols = ["id", "country_code", "indicator_code", "scenario_code", "source_id", "period", "period_type", "value", "is_forecast", "version"]
+    cols = ["id", "country_code", "indicator_code", "scenario_code", "source_id", 
+            "period", "period_type", "value", "is_forecast", "version"]
     insert_df = df[cols].copy()
+    
     conn.register("insert_df", insert_df)
-    conn.execute("INSERT INTO fact_indicator_values SELECT * FROM insert_df")
+    conn.execute("""
+        INSERT INTO fact_indicator_values 
+        (id, country_code, indicator_code, scenario_code, source_id, 
+         period, period_type, value, is_forecast, version)
+        SELECT * FROM insert_df
+    """)
     conn.unregister("insert_df")
-    print(f"  → {len(insert_df):,} linhas")
+    
+    print(f"  → {len(insert_df):,} linhas carregadas")
     return next_id + len(insert_df)
 
 def run():
@@ -109,15 +126,15 @@ def run():
 
         files = sorted(PROCESSED_DATA_DIR.glob("*.parquet"))
         if not files:
-            print("⚠️ Nenhum parquet encontrado.")
+            print("⚠️ Nenhum .parquet em data/processed/")
             return
 
         next_id = 1
         for path in files:
             next_id = load_processed_file(conn, path, next_id)
 
-        total = conn.execute("SELECT COUNT(*) FROM fact_indicator_values").df().iloc[0,0]
-        print(f"✅ Total carregado: {total:,} registros")
+        total = conn.execute("SELECT COUNT(*) AS n FROM fact_indicator_values").df()["n"][0]
+        print(f"\n✅ Total: {total:,} registros em fact_indicator_values")
 
 if __name__ == "__main__":
     run()
