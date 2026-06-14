@@ -21,13 +21,17 @@ def _safe_run(module, name: str, log=print, retries: int = 2):
     """Executa module.run() com retry simples (backoff 5s)."""
     for attempt in range(1, retries + 2):
         try:
+            log(f"🔄 {name} — iniciando (tentativa {attempt})...")
             module.run()
+            log(f"✅ {name} — sucesso.")
             return True
         except Exception as e:
-            log(f"⚠️  {name} — tentativa {attempt}: {e}")
+            log(f"⚠️ {name} — tentativa {attempt} falhou: {str(e)[:200]}")
             if attempt <= retries:
+                log(f"   Aguardando 5 segundos antes da próxima tentativa...")
                 time.sleep(5)
-    log(f"✗  {name} falhou após {retries + 1} tentativas.")
+            else:
+                log(f"✗ {name} — falha definitiva após {retries+1} tentativas.")
     return False
 
 
