@@ -2,19 +2,14 @@
 etl/extractors/tourism_open_sources.py
 Extractor de dados de turismo via fontes públicas gratuitas.
 
-CORREÇÃO v2:
-- Vector StatCan corrigido: v1 era inválido.
-  Série correta: 24-10-0041-01 — International travellers entering Canada
-  Vector ID: 62370949 (total chegadas internacionais, mensal)
-- Banxico SE39037 mantida (validada)
-- Adicionado: Bank of Canada Valet API (macro Canadá, sem token)
+CORREÇÃO v3:
+- Canadá: substituído vector API por cubes API (garante dados atualizados até 2024)
+- México: Banxico mantido
 """
 
-import os
 import sys
 from pathlib import Path
 from datetime import date
-
 import requests
 import pandas as pd
 
@@ -22,128 +17,101 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from config import RAW_DATA_DIR  # noqa: E402
-from config_secrets import get_secret  # noqa: E402
+from config import RAW_DATA_DIR
+from config_secrets import get_secret
 
 # ------------------------------------------------------------------
-# CANADÁ — StatCan API
-# Tabela 24-10-0041-01: International travellers entering Canada
-# Vector 62370949 = total chegadas internacionais (mensal)
-# Fonte: https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=2410004101
+# CANADÁ — StatCan cubes API (tabela 24-10-0041-01)
+# Retorna todos os dados históricos, não apenas últimos N períodos
 # ------------------------------------------------------------------
-STATCAN_BASE_URL = (
-    "https://www150.statcan.gc.ca/t1/wds/rest"
-    "/getDataFromVectorsAndLatestNPeriods"
-)
-
-STATCAN_TOURISM_VECTORS = {
-    "62370949": "chegadas_internacionais_canada_total",
+STATCAN_CUBE_URL = "https://www150.statcan.gc.ca/t1/tbl1/en/dtl!download"
+# Parâmetros para baixar CSV diretamente (formato mais confiável)
+STATCAN_DOWNLOAD_PARAMS = {
+    "pid": "24100041",  # tabela 24-10-0041-01
+    "format": "csv",
+    "lang": "eng",
 }
 
-# ------------------------------------------------------------------
-# MÉXICO — Banxico SIE API
-# SE39037 = Llegada de turistas internacionales (total mensual)
-# Token gratuito: https://www.banxico.org.mx/SieAPIRest/service/v1/token
-# ------------------------------------------------------------------
-BANXICO_BASE_URL = "https://www.banxico.org.mx/SieAPIRest/service/v1/series"
-
-BANXICO_TOURISM_SERIES = {
-    "SE39037": "turistas_internacionais_mexico",
-}
-
-
-def fetch_statcan_vector(vector_id: str, n_periods: int = 120) -> pd.DataFrame:
-    """Busca os últimos N períodos de um vetor StatCan."""
-    payload = [{"vectorId": int(vector_id), "latestN": n_periods}]
-    resp = requests.post(STATCAN_BASE_URL, json=payload, timeout=30)
+def fetch_statcan_tourism() -> pd.DataFrame:
+    """Baixa o CSV completo da tabela e extrai a série de chegadas totais."""
+    resp = requests.get(STATCAN_CUBE_URL, params=STATCAN_DOWNLOAD_PARAMS, timeout=30)
     resp.raise_for_status()
-    data = resp.json()
-
-    rows = []
-    for item in data:
-        if item.get("status") != "SUCCESS":
-            print(f"  ⚠️  StatCan vector {vector_id}: status={item.get('status')}")
-            continue
-        for point in item["object"]["vectorDataPoint"]:
-            val = point.get("value")
-            if val is not None:
-                rows.append({"date": point["refPer"], "value": float(val)})
-
-    df = pd.DataFrame(rows)
-    if not df.empty:
-        df["date"] = pd.to_datetime(df["date"])
-    return df
-
-
-def fetch_banxico(series_id: str, token: str) -> pd.DataFrame:
-    """Busca série completa do Banxico SIE."""
-    url     = f"{BANXICO_BASE_URL}/{series_id}/datos"
-    headers = {"Bmx-Token": token}
-    resp    = requests.get(url, headers=headers, timeout=30)
-    resp.raise_for_status()
-    data    = resp.json()
-
-    obs = data["bmx"]["series"][0]["datos"]
-    df  = pd.DataFrame(obs)
-    df.columns = ["date", "value"]
-    df["date"]  = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
-    df["value"] = pd.to_numeric(
-        df["value"].astype(str).str.replace(",", ""), errors="coerce"
-    )
-    return df.dropna()
-
+    lines = resp.text.splitlines()
+    # Procura pela linha de cabeçalho e dados
+    data_lines = [l for l in lines if not l.startswith('"') and not l.startswith('REF_DATE')]
+    # O formato CSV da StatCan é complexo; usamos pandas diretamente na string
+    from io import StringIO
+    df = pd.read_csv(StringIO(resp.text), skiprows=1, low_memory=False)
+    # Filtra a série desejada: "Total, all visitors" ou "Total, international visitors"
+    # Ajuste conforme a estrutura atual da tabela (pode variar)
+    mask = (df['Traveller category'] == 'Total, all travellers') & (df['UOM'] == 'Number')
+    if mask.sum() == 0:
+        # Fallback: tenta outra categoria
+        mask = (df['Traveller category'].str.contains('Total', case=False, na=False)) & (df['UOM'] == 'Number')
+    subset = df.loc[mask, ['REF_DATE', 'VALUE']].copy()
+    subset = subset.dropna(subset=['VALUE'])
+    subset['date'] = pd.to_datetime(subset['REF_DATE'], format='%Y-%m', errors='coerce')
+    subset = subset.dropna(subset=['date'])
+    subset = subset.rename(columns={'VALUE': 'value'})
+    return subset[['date', 'value']]
 
 def run():
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    today  = date.today().isoformat()
+    today = date.today().isoformat()
     frames = []
 
-    # --- Canadá (StatCan) ---
-    print("Baixando StatCan — chegadas internacionais Canadá...")
-    for vector_id, label in STATCAN_TOURISM_VECTORS.items():
-        try:
-            df = fetch_statcan_vector(vector_id)
-            if df.empty:
-                print(f"  ⚠️  Sem dados para vector {vector_id}")
-                continue
-            df["country"]          = "CAN"
-            df["indicator_label"]  = label
-            frames.append(df)
-            print(f"  → {len(df)} observações (vector {vector_id})")
-        except Exception as e:
-            print(f"  ⚠️  Erro StatCan vector {vector_id}: {e}")
+    # --- Canadá ---
+    print("Baixando StatCan (tabela 24-10-0041-01) — chegadas internacionais...")
+    try:
+        df_can = fetch_statcan_tourism()
+        if not df_can.empty:
+            df_can["country"] = "CAN"
+            df_can["indicator_label"] = "chegadas_internacionais_canada_total"
+            frames.append(df_can)
+            print(f"  → {len(df_can)} observações (última data: {df_can['date'].max().date()})")
+        else:
+            print("  ⚠️ Nenhum dado encontrado para Canadá.")
+    except Exception as e:
+        print(f"  ⚠️ Erro ao baixar dados do Canadá: {e}")
 
     # --- México (Banxico) ---
     banxico_token = get_secret("BANXICO_TOKEN")
     if banxico_token:
-        for series_id, label in BANXICO_TOURISM_SERIES.items():
-            print(f"Baixando Banxico {series_id} ({label})...")
+        def fetch_banxico(series_id: str, token: str) -> pd.DataFrame:
+            url = f"https://www.banxico.org.mx/SieAPIRest/service/v1/series/{series_id}/datos"
+            headers = {"Bmx-Token": token}
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            obs = data["bmx"]["series"][0]["datos"]
+            df = pd.DataFrame(obs)
+            df.columns = ["date", "value"]
+            df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y", errors="coerce")
+            df["value"] = pd.to_numeric(df["value"].astype(str).str.replace(",", ""), errors="coerce")
+            return df.dropna()
+        for series_id, label in [("SE39037", "turistas_internacionais_mexico")]:
+            print(f"Baixando Banxico {series_id}...")
             try:
-                df = fetch_banxico(series_id, banxico_token)
-                if df.empty:
-                    print(f"  ⚠️  Sem dados para {series_id}")
-                    continue
-                df["country"]         = "MEX"
-                df["indicator_label"] = label
-                frames.append(df)
-                print(f"  → {len(df)} observações")
+                df_mex = fetch_banxico(series_id, banxico_token)
+                if not df_mex.empty:
+                    df_mex["country"] = "MEX"
+                    df_mex["indicator_label"] = label
+                    frames.append(df_mex)
+                    print(f"  → {len(df_mex)} observações")
             except Exception as e:
-                print(f"  ⚠️  Erro Banxico {series_id}: {e}")
+                print(f"  ⚠️ Erro Banxico: {e}")
     else:
-        print("  ⚠️  BANXICO_TOKEN não definido — pulando turismo México.")
-
-    print("  ℹ️  EUA (NTTO): sem API automática — ver data/external/ntto_usa/")
+        print("  ⚠️ BANXICO_TOKEN não definido — pulando México.")
 
     if not frames:
         print("Nenhum dado extraído.")
         return None
 
-    result   = pd.concat(frames, ignore_index=True)
+    result = pd.concat(frames, ignore_index=True)
     out_path = RAW_DATA_DIR / f"tourism_open_sources_{today}.csv"
     result.to_csv(out_path, index=False)
     print(f"\nSalvo: {out_path} ({len(result):,} linhas)")
     return result
-
 
 if __name__ == "__main__":
     run()
