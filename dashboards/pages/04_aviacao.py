@@ -1,14 +1,12 @@
 """
 dashboards/pages/04_aviacao.py
 Página 4 — Aviação
-Rotas, Passageiros, Assentos.
 """
 
 import sys
 from pathlib import Path
 
 import streamlit as st
-import pandas as pd
 import plotly.graph_objects as go
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -32,84 +30,82 @@ st.markdown("###")
 tabs = st.tabs(["Capacidade & Rotas", "Sazonalidade", "Custos Operacionais (Petróleo)"])
 
 with tabs[0]:
-    st.subheader("Capacidade adicional por hub aeroportuário (cidades-sede)")
-
+    st.subheader("Capacidade adicional por hub aeroportuário")
     st.markdown(
         """
         Esta seção apresentará a **capacidade adicional de assentos e rotas**
         por aeroporto-sede durante o período da Copa.
 
         **Por que ainda não está disponível:**
-
         Dados de capacidade aérea (rotas, assentos ofertados, frequências)
         não têm fonte pública gratuita com API REST. As fontes de referência
         são **OAG** e **IATA**, ambas pagas (B2B).
 
         **Alternativas em avaliação:**
-        - Dados de aeroportos via **OpenFlights** (estático, desatualizado)
-        - Estatísticas da **FAA** (EUA) — possível via download manual
-        - **Transport Canada** / **AFAC México** — estatísticas oficiais nacionais
+        - Dados da **FAA** (EUA) — estatísticas oficiais via download manual
+        - **Transport Canada** / **AFAC México** — estatísticas nacionais
 
         **Onde isso será implementado:** `etl/extractors/aviation_*.py`
-        (ver roadmap do projeto — fase pós-MVP).
+        (roadmap — fase pós-MVP).
         """
     )
     data_pending_notice("Dados de capacidade aérea (OAG/IATA — fontes pagas)")
 
 with tabs[1]:
     st.subheader("Sazonalidade de passageiros — junho/julho 2026")
-
     st.markdown(
         """
         Esta seção apresentará a **curva diária de chegada/saída de
-        passageiros** durante o evento, permitindo identificar picos de
-        demanda por aeroporto-sede.
+        passageiros** durante o evento, por aeroporto-sede.
 
-        **Por que ainda não está disponível:** depende da mesma fonte de
-        dados de capacidade aérea (ver aba anterior).
+        **Por que ainda não está disponível:** depende da mesma fonte
+        de dados de capacidade aérea (ver aba anterior).
         """
     )
-    data_pending_notice("Curva de sazonalidade de passageiros — depende de dados de capacidade")
+    data_pending_notice("Curva de sazonalidade — depende de dados de capacidade")
 
 with tabs[2]:
     st.subheader("Custos operacionais — sensibilidade ao petróleo (dados reais)")
 
     @st.cache_data(ttl=600)
-    def load_oil_series(indicator_code: str) -> pd.DataFrame:
+    def load_oil(code: str) -> "pd.DataFrame":
+        import pandas as pd
         with get_connection() as conn:
             df = conn.execute(
-                """
-                SELECT period, value FROM fact_indicator_values
-                WHERE indicator_code = ?
-                ORDER BY period
-                """,
-                [indicator_code],
+                "SELECT period, value FROM fact_indicator_values "
+                "WHERE indicator_code = ? ORDER BY period",
+                [code],
             ).df()
         df["period"] = pd.to_datetime(df["period"])
         return df
 
-    df = load_oil_series("WTI_CRUDE")
+    import pandas as pd
 
-    if not df.empty:
+    df_wti = load_oil("WTI_CRUDE")
+
+    if not df_wti.empty:
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df["period"], y=df["value"], mode="lines", name="WTI (US$/bbl)"))
+        fig.add_trace(go.Scatter(
+            x=df_wti["period"], y=df_wti["value"],
+            mode="lines", name="WTI (US$/bbl)",
+            line=dict(color="#4C8BF5"),
+        ))
         fig.update_layout(title="WTI — proxy para custo de jet fuel (série real)")
         apply_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
 
-        last = df["value"].iloc[-1]
+        last = df_wti["value"].iloc[-1]
+        last_date = df_wti["period"].iloc[-1].strftime("%b/%Y")
         st.caption(
-            f"WTI atual: US$ {last:,.2f}/bbl. Jet fuel tende a acompanhar o "
-            f"WTI/Brent com defasagem — ver página Geopolítica para contexto "
-            f"completo (World Cup Risk Score)."
+            f"WTI atual: US$ {last:,.2f}/bbl ({last_date}). "
+            f"Jet fuel acompanha WTI/Brent com defasagem — "
+            f"ver página Geopolítica para contexto completo."
         )
 
         st.markdown(
             """
-            **O que falta para a análise completa de sensibilidade:**
-
-            - Participação do combustível no custo operacional total (CASK)
-              por companhia aérea/região
+            **O que falta para análise completa:**
+            - Participação do combustível no custo operacional (CASK) por companhia/região
             - Elasticidade histórica entre WTI e tarifas (jet fuel surcharge)
             - Projeção de cenários de custo por faixa de preço do petróleo
 
