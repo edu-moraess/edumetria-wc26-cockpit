@@ -137,7 +137,7 @@ st.header("📊 Dados Recentes — Indicadores WC26")
 try:
     with get_connection() as conn:
         df = conn.execute("""
-            SELECT country_id, indicator_id, value, ingested_at
+            SELECT country_code, indicator_code, value, ingested_at
             FROM fact_indicator_values
             ORDER BY ingested_at DESC
             LIMIT 20
