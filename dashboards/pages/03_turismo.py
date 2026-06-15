@@ -104,4 +104,4 @@ with tabs[1]:
 # ------------------------------------------------------------------
 with tabs[2]:
     st.subheader("Comparação: Canadá vs. México")
-    data_pending_notice("Comparação CAN vs MEX — sem dados carregados")
+    data_pending_notice("Comparação CAN vs MEX — sem dados carregados") 
