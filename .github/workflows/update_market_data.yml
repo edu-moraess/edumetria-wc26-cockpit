@@ -1,22 +1,86 @@
-name: Update Yahoo Finance Data
+name: Update Market & Macro Data
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # toda segunda-feira às 9h UTC
+    - cron: '0 10 * * 1'  # toda segunda às 10h UTC
   workflow_dispatch:
 
 jobs:
-  fetch:
+  update-data:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install -r requirements.txt
-      - run: python -m etl.extractors.yfinance_markets
-      - run: python -m etl.transformers.clean_markets
-      - uses: stefanzweifel/git-auto-commit-action@v5
+          cache: 'pip'
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: FRED macro EUA
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python -m etl.extractors.fred
+
+      - name: FRED expandido
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python -m etl.extractors.fred_expanded
+
+      - name: StatCan macro
+        run: python -m etl.extractors.statcan_macro || true
+
+      - name: Bank of Canada
+        run: python -m etl.extractors.bank_of_canada || true
+
+      - name: Turismo (StatCan + Banxico)
+        env:
+          BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
+        run: python -m etl.extractors.tourism_open_sources || true
+
+      - name: Delay antes do yfinance
+        run: sleep 10
+
+      - name: yfinance mercados
+        run: python -m etl.extractors.yfinance_markets || true
+
+      - name: Delay entre downloads
+        run: sleep 15
+
+      - name: yfinance expandido
+        run: python -m etl.extractors.yfinance_expanded || true
+
+      # Transformers — clean_macro ANTES de clean_expanded
+      - name: Transform macro EUA
+        run: python -m etl.transformers.clean_macro
+
+      - name: Transform markets
+        run: python -m etl.transformers.clean_markets || true
+
+      - name: Transform turismo
+        run: python -m etl.transformers.clean_tourism || true
+
+      - name: Transform macro CAN/MEX
+        env:
+          INEGI_TOKEN: ${{ secrets.INEGI_TOKEN }}
+        run: python -m etl.transformers.clean_macro_can_mex || true
+
+      - name: Transform Bank of Canada
+        run: python -m etl.transformers.clean_bank_of_canada || true
+
+      - name: Transform expandido (último)
+        run: python -m etl.transformers.clean_expanded || true
+
+      - name: Commit dados
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: atualizar dados de mercado (yfinance)"
-          file_pattern: "data/raw/yfinance_markets_*.csv data/processed/markets.parquet"
+          commit_message: "chore: atualizar dados [${{ github.run_id }}]"
+          file_pattern: |
+            data/raw/*.csv
+            data/processed/*.parquet
