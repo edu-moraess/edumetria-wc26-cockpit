@@ -1,7 +1,8 @@
 """
 dashboards/pages/03_turismo.py
 Página 3 — Turismo Internacional
-Ajustado para exibir dados apenas quando selecionar EUA.
+Ajustado para exibir dados de EUA quando selecionado,
+mantendo informativos nas outras abas.
 """
 
 import sys
@@ -75,6 +76,18 @@ with tabs[0]:
 # ------------------------------------------------------------------
 with tabs[1]:
     st.subheader("Decomposição setorial do gasto turístico")
+    st.markdown(
+        """
+        Esta seção apresentará a **receita incremental por setor**
+        (hotelaria, aviação, restaurantes, varejo, entretenimento),
+        decompondo o gasto turístico total observado.
+
+        **Por que ainda não está disponível:**
+        - Requer modelo de Input-Output com multiplicadores setoriais
+        - Gasto médio por visitante
+        - Permanência média e padrão de consumo por setor
+        """
+    )
     data_pending_notice("Modelo Input-Output (multiplicadores setoriais)")
 
 # ------------------------------------------------------------------
