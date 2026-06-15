@@ -128,25 +128,3 @@ pages = [
 ]
 nav = st.navigation(pages)
 nav.run()
-
-# ------------------------------
-# BLOCO DE DADOS DIRETO NO APP
-# ------------------------------
-st.header("📊 Dados Recentes — Indicadores WC26")
-
-try:
-    with get_connection() as conn:
-        df = conn.execute("""
-            SELECT country_code, indicator_code, value, ingested_at
-            FROM fact_indicator_values
-            ORDER BY ingested_at DESC
-            LIMIT 20
-        """).fetchdf()
-
-    if df.empty:
-        st.warning("⚠ Nenhum dado disponível — rode o pipeline ETL.")
-    else:
-        st.metric("Total de Registros", f"{len(df):,}")
-        st.dataframe(df)
-except Exception as e:
-    st.error(f"Erro ao carregar dados: {e}")
