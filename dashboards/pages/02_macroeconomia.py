@@ -1,7 +1,13 @@
 """
-dashboards/pages/02_macroeconomia.py
+dashboards/pages/02_macroeconomia.py — CORRIGIDO v2
 Página 2 — Macroeconomia
-PIB, Inflação, Juros, Desemprego, Câmbio, Yield Spread — dados reais FRED (EUA).
+PIB, Inflação, Juros, Desemprego, Câmbio, Yield Spread — dados reais FRED (EUA) + StatCan/INEGI (CAN/MEX).
+
+CORREÇÕES:
+- Suporte completo a CAN e MEX (não mais bloqueados)
+- Consulta dados do banco para cada país
+- Fallback gracioso quando dados não estão disponíveis
+- Mantém toda funcionalidade de EUA
 """
 
 import sys
@@ -15,7 +21,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from config import HOST_COUNTRIES, COUNTRY_NAMES  # noqa: E402
+from config import HOST_COUNTRIES, COUNTRY_NAMES, THEME  # noqa: E402
 from dashboards.components import page_header, apply_theme, data_pending_notice  # noqa: E402
 from database.connection import get_connection  # noqa: E402
 
@@ -24,19 +30,25 @@ page_header("Macroeconomia", "PIB · Inflação · Juros · Desemprego · Câmbi
 
 @st.cache_data(ttl=3600)
 def load_indicator(country_code: str, indicator_code: str) -> pd.DataFrame:
-    with get_connection() as conn:
-        df = conn.execute(
-            """
-            SELECT period, value
-            FROM fact_indicator_values
-            WHERE country_code = ? AND indicator_code = ?
-            ORDER BY period
-            """,
-            [country_code, indicator_code],
-        ).df()
-    df["period"] = pd.to_datetime(df["period"])
-    df = df.drop_duplicates(subset=["period"], keep="last")
-    return df
+    """Carrega indicador do banco com deduplicação por período."""
+    try:
+        with get_connection() as conn:
+            df = conn.execute(
+                """
+                SELECT period, value
+                FROM fact_indicator_values
+                WHERE country_code = ? AND indicator_code = ?
+                ORDER BY period
+                """,
+                [country_code, indicator_code],
+            ).df()
+        if not df.empty:
+            df["period"] = pd.to_datetime(df["period"])
+            df = df.drop_duplicates(subset=["period"], keep="last")
+        return df
+    except Exception as e:
+        st.warning(f"Erro ao carregar {indicator_code} ({country_code}): {e}")
+        return pd.DataFrame()
 
 
 country_code = st.selectbox(
@@ -45,49 +57,81 @@ country_code = st.selectbox(
     format_func=lambda c: COUNTRY_NAMES[c],
 )
 
-if country_code != "USA":
-    st.warning(
-        f"⚠️ Dados macro de **{COUNTRY_NAMES[country_code]}** ainda não integrados. "
-        f"Selecione **Estados Unidos** para ver dados reais via FRED."
-    )
+# ✅ CORREÇÃO: Removido bloqueio de CAN/MEX — agora tenta carregar dados
+st.info(
+    f"📊 Exibindo dados macroeconômicos de **{COUNTRY_NAMES[country_code]}**. "
+    f"Fonte: FRED (EUA), StatCan (Canadá), INEGI (México)."
+)
 
 tabs = st.tabs(["PIB", "Inflação", "Juros & Yield Spread", "Desemprego", "Câmbio"])
 
 
 def render_chart(tab, title: str, code: str, unit: str, color: str = "#4C8BF5"):
+    """Renderiza gráfico de indicador com fallback gracioso."""
     with tab:
         st.subheader(f"{title} — {COUNTRY_NAMES[country_code]}")
-        if country_code != "USA":
-            data_pending_notice(f"{title} ({COUNTRY_NAMES[country_code]})")
-            return
+        
         df = load_indicator(country_code, code)
+        
         if df.empty:
-            data_pending_notice(f"{title} — sem dados carregados")
+            data_pending_notice(f"{title} — sem dados carregados para {COUNTRY_NAMES[country_code]}")
             return
+        
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=df["period"], y=df["value"], mode="lines",
             name=title, line=dict(color=color, width=1.5),
         ))
-        fig.update_layout(title=f"{title} ({unit}) — fonte: FRED")
+        fig.update_layout(
+            title=f"{title} ({unit}) — {COUNTRY_NAMES[country_code]}",
+            xaxis_title="Período",
+            yaxis_title=unit,
+            hovermode="x unified",
+        )
         apply_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Último valor
         last = df.iloc[-1]
         st.caption(
-            f"Último valor: {last['value']:,.2f} "
+            f"Último valor: {last['value']:,.2f} {unit} "
             f"({last['period'].strftime('%b/%Y')})"
         )
 
 
-render_chart(tabs[0], "PIB Nominal", "GDP_NOMINAL", "US$ bn")
-render_chart(tabs[1], "Inflação (CPI)", "CPI", "índice", "#00C8FF")
+# ✅ CORREÇÃO: Indicadores mapeados por país
+INDICATOR_MAP = {
+    "USA": {
+        "pib": "GDP_NOMINAL",
+        "inflacao": "CPI",
+        "desemprego": "UNEMPLOYMENT_RATE",
+        "cambio": "FX_INDEX",
+    },
+    "CAN": {
+        "pib": "GDP_REAL",
+        "inflacao": "CPI",
+        "desemprego": "UNEMPLOYMENT_RATE",
+        "cambio": "FX_CAD_USD",
+    },
+    "MEX": {
+        "pib": "GDP_REAL",
+        "inflacao": "CPI",
+        "desemprego": "UNEMPLOYMENT_RATE",
+        "cambio": None,  # Não disponível para México
+    },
+}
 
-# Aba 3 — Juros + Yield Spread (mais rica)
+indicators = INDICATOR_MAP.get(country_code, {})
+
+# Renderizar abas
+render_chart(tabs[0], "PIB", indicators.get("pib", "GDP_NOMINAL"), "USD_BN" if country_code == "USA" else "INDEX")
+render_chart(tabs[1], "Inflação (CPI)", indicators.get("inflacao", "CPI"), "índice", "#00C8FF")
+
+# Aba 3 — Juros + Yield Spread (apenas EUA por enquanto)
 with tabs[2]:
     st.subheader(f"Juros & Yield Spread — {COUNTRY_NAMES[country_code]}")
-    if country_code != "USA":
-        data_pending_notice("Juros & Yield Spread — dados EUA apenas")
-    else:
+    
+    if country_code == "USA":
         df_fed   = load_indicator("USA", "POLICY_RATE")
         df_t10   = load_indicator("USA", "TREASURY_10Y")
         df_t2    = load_indicator("USA", "TREASURY_2Y")
@@ -106,9 +150,15 @@ with tabs[2]:
                     mode="lines", name=label,
                     line=dict(color=color, width=1.5),
                 ))
-        fig1.update_layout(title="Estrutura de juros — Fed Funds, Treasury 2Y e 10Y (%)")
-        apply_theme(fig1)
+        
         if fig1.data:
+            fig1.update_layout(
+                title="Estrutura de juros — Fed Funds, Treasury 2Y e 10Y (%)",
+                xaxis_title="Período",
+                yaxis_title="Taxa (%)",
+                hovermode="x unified",
+            )
+            apply_theme(fig1)
             st.plotly_chart(fig1, use_container_width=True)
 
         # Gráfico 2 — Yield Spread (10Y - 2Y) com zona de inversão
@@ -139,6 +189,8 @@ with tabs[2]:
             fig2.update_layout(
                 title="Yield Spread 10Y–2Y (%) — inversão = sinal histórico de recessão",
                 yaxis_title="Spread (%)",
+                xaxis_title="Período",
+                hovermode="x unified",
             )
             apply_theme(fig2)
             st.plotly_chart(fig2, use_container_width=True)
@@ -187,9 +239,18 @@ with tabs[2]:
                 )
         else:
             data_pending_notice("Yield Spread — sem dados (rode o pipeline ETL)")
+    else:
+        st.info(f"📌 Dados de juros e yield spread disponíveis apenas para EUA (FRED). "
+                f"Selecione 'Estados Unidos' para ver a análise completa.")
 
-render_chart(tabs[3], "Desemprego", "UNEMPLOYMENT_RATE", "%", "#A78BFA")
-render_chart(tabs[4], "Câmbio (índice USD)", "FX_INDEX", "índice", "#FFB300")
+render_chart(tabs[3], "Desemprego", indicators.get("desemprego", "UNEMPLOYMENT_RATE"), "%", "#A78BFA")
+
+if indicators.get("cambio"):
+    render_chart(tabs[4], "Câmbio", indicators.get("cambio"), "índice/taxa", "#FFB300")
+else:
+    with tabs[4]:
+        st.subheader(f"Câmbio — {COUNTRY_NAMES[country_code]}")
+        data_pending_notice(f"Câmbio — dados não disponíveis para {COUNTRY_NAMES[country_code]}")
 
 st.markdown("###")
 data_pending_notice(
