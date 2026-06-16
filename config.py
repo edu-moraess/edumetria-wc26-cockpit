@@ -164,4 +164,4 @@ BRAND = {
     "org": "Edumetria",
     "role": "Quant Data Scientist & Economics Researcher",
     "report_title": "FIFA World Cup 2026™ — Impact Analytics Platform",
-}
+} 
