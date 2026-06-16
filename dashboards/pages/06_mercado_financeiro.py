@@ -286,4 +286,4 @@ with tabs[4]:
 st.markdown("###")
 data_pending_notice(
     "Event Study (CAR por setor) — depende de modelagem em models/econometric/"
-)
+) 
