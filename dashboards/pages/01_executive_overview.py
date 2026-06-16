@@ -204,3 +204,4 @@ st.markdown("###")
 st.subheader("Escala de Classificação WCLI")
 wcli_scale_df = pd.DataFrame(WCLI_CLASSIFICATION, columns=["De", "Até", "Classificação"])
 st.dataframe(wcli_scale_df, hide_index=True, use_container_width=True)
+
