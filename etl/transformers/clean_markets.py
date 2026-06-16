@@ -107,4 +107,4 @@ def run(input_path: Path | None = None) -> pd.DataFrame | None:
 
 
 if __name__ == "__main__":
-    run()
+    run() 
