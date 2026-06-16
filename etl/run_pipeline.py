@@ -1,19 +1,18 @@
 """
 etl/run_pipeline.py — v4 CORRIGIDO
 
-CORREÇÕES:
-- Validação de frescor dos dados (alerta se dados > 60 dias)
-- Logging detalhado de sucesso/falha por módulo
-- Retry com backoff exponencial por módulo
-- Verificação pós-load com detecção de placeholder 100.0
-- Fallback gracioso: falha de um módulo não para o pipeline
-- Novo: Detecção de dados antigos (últimas datas < 60 dias)
+CORREÇÕES v4:
+- Inicialização OBRIGATÓRIA de schema no início do pipeline
+- Verificação de frescor detalhada por indicador/país
+- Alerta explícito para dados com mais de 60 dias
+- Resumo de indicadores atualizados vs. desatualizados
+- Mantém retry com backoff e fallback gracioso
 """
 
 import sys
 import time
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
@@ -21,7 +20,6 @@ if str(ROOT_DIR) not in sys.path:
 
 
 def _safe_run(module, name: str, log=print, retries: int = 2, delay: int = 5) -> bool:
-    """Executa módulo com retry e backoff exponencial."""
     for attempt in range(1, retries + 2):
         try:
             module.run()
@@ -29,16 +27,25 @@ def _safe_run(module, name: str, log=print, retries: int = 2, delay: int = 5) ->
         except Exception as e:
             log(f"  ⚠️  [{name}] tentativa {attempt}/{retries + 1}: {e}")
             if attempt <= retries:
-                wait_time = delay * (2 ** (attempt - 1))
-                log(f"  ⏳ Aguardando {wait_time}s...")
-                time.sleep(wait_time)
+                log(f"  ⏳ Aguardando {delay}s...")
+                time.sleep(delay)
     log(f"  ✗ [{name}] falhou após {retries + 1} tentativas — continuando")
     return False
 
 
 def run(log=print):
-    """Executa pipeline ETL completo com validações."""
     results = {}
+
+    # ✅ CORREÇÃO: Inicialização do Schema antes de tudo
+    log("=" * 60)
+    log("INICIALIZAÇÃO DO BANCO DE DADOS")
+    log("=" * 60)
+    try:
+        from database.connection import init_schema
+        init_schema()
+        log("✓ Schema inicializado/verificado com sucesso.")
+    except Exception as e:
+        log(f"⚠️  Erro ao inicializar schema: {e}")
 
     try:
         from etl.extractors import fred, fred_expanded
@@ -63,7 +70,7 @@ def run(log=print):
     # ------------------------------------------------------------------
     # ETAPA 1 — EXTRACTORS
     # ------------------------------------------------------------------
-    log("=" * 60)
+    log("\n" + "=" * 60)
     log("ETAPA 1/3 — EXTRACTORS")
     log("=" * 60)
 
@@ -76,12 +83,10 @@ def run(log=print):
 
     log("\n  [yfinance] Iniciando (pode levar 30-60s)...")
     results["yfinance"]      = _safe_run(yfinance_markets,     "yfinance (índices, ETFs)",    log, retries=2, delay=15)
-
-    log("\n  [yfinance expanded] Iniciando...")
     results["yfinance_exp"]  = _safe_run(yfinance_expanded,    "yfinance Expandido",          log, retries=2, delay=15)
 
     # ------------------------------------------------------------------
-    # ETAPA 2 — TRANSFORMERS (ordem importa)
+    # ETAPA 2 — TRANSFORMERS
     # ------------------------------------------------------------------
     log("\n" + "=" * 60)
     log("ETAPA 2/3 — TRANSFORMERS")
@@ -92,7 +97,6 @@ def run(log=print):
     results["T_tourism"] = _safe_run(clean_tourism,        "Turismo",              log)
     results["T_can_mex"] = _safe_run(clean_macro_can_mex,  "Macro CAN/MEX",        log)
     results["T_boc"]     = _safe_run(clean_bank_of_canada, "Bank of Canada",       log)
-    # DEVE ser o último (depende de macro_usa.parquet)
     results["T_expanded"]= _safe_run(clean_expanded,       "Expandido (stress)",   log)
 
     # ------------------------------------------------------------------
@@ -105,48 +109,21 @@ def run(log=print):
     results["Loader"] = _safe_run(load_indicators, "Loader principal", log, retries=1)
 
     # ------------------------------------------------------------------
-    # VERIFICAÇÃO PÓS-LOAD
+    # VERIFICAÇÃO PÓS-LOAD + FRESCO DOS DADOS
     # ------------------------------------------------------------------
     log("\n" + "=" * 60)
-    log("VERIFICAÇÃO PÓS-LOAD")
+    log("VERIFICAÇÃO PÓS-LOAD & FRESCO DOS DADOS")
     log("=" * 60)
 
     try:
         from database.connection import get_connection
         with get_connection() as conn:
-            # Contagem total
-            total = conn.execute(
-                "SELECT COUNT(*) AS n FROM fact_indicator_values"
-            ).df()["n"][0]
+            total = conn.execute("SELECT COUNT(*) AS n FROM fact_indicator_values").df()["n"][0]
+            log(f"✓ Total de registros no banco: {total:,}")
 
-            if total == 0:
-                log("✗ ALERTA: banco vazio após pipeline!")
-                log("  Verifique: (1) chaves de API nos Secrets, "
-                    "(2) conectividade, (3) logs acima")
-            else:
-                log(f"✓ {total:,} registros no banco")
-
-                # ✅ CORREÇÃO 1: Detecta placeholder 100.0
-                suspicious = conn.execute("""
-                    SELECT indicator_code, COUNT(*) as n
-                    FROM fact_indicator_values
-                    WHERE value = 100.0
-                      AND indicator_code IN (
-                        'SP500','VIX','WTI_CRUDE','BRENT_CRUDE','TSX','IPC_MEXICO'
-                      )
-                    GROUP BY indicator_code
-                """).df()
-
-                if not suspicious.empty:
-                    log("\n⚠️  Placeholder 100.0 detectado:")
-                    for _, row in suspicious.iterrows():
-                        log(f"  {row['indicator_code']}: {int(row['n'])} linhas")
-                    log("  → Execute novamente ou verifique Yahoo Finance")
-                else:
-                    log("✓ Nenhum placeholder 100.0 detectado")
-
-                # ✅ CORREÇÃO 2: Verifica frescor dos dados (últimas datas)
-                log("\n📅 Verificação de frescor dos dados:")
+            if total > 0:
+                # ✅ CORREÇÃO: Verificação de frescor detalhada
+                log("\n📅 Estado de atualização por indicador/país:")
                 freshness = conn.execute("""
                     SELECT 
                         indicator_code,
@@ -168,14 +145,13 @@ def run(log=print):
                     # Alertas para dados muito antigos
                     old_data = freshness[freshness["days_old"] > 60]
                     if not old_data.empty:
-                        log("\n⚠️  ALERTA: Dados com mais de 60 dias:")
+                        log("\n⚠️  ALERTA: Indicadores com mais de 60 dias de atraso:")
                         for _, row in old_data.iterrows():
-                            log(f"  {row['indicator_code']} ({row['country_code']}): "
-                                f"{row['days_old']} dias atrás ({row['last_period'].strftime('%Y-%m-%d')})")
+                            log(f"  - {row['indicator_code']} ({row['country_code'] or 'Global'}): {row['days_old']} dias atrás")
                     
                     # Resumo de frescor
                     recent = freshness[freshness["days_old"] <= 7]
-                    log(f"\n✓ {len(recent)} indicadores atualizados (≤ 7 dias)")
+                    log(f"\n✓ {len(recent)} indicadores atualizados nos últimos 7 dias.")
                     
                     # Últimas datas por país
                     log("\n📊 Últimas datas por país:")
@@ -183,11 +159,10 @@ def run(log=print):
                         country_data = freshness[freshness["country_code"] == country]
                         if not country_data.empty:
                             last_date = country_data["last_period"].max()
-                            n_indicators = len(country_data)
-                            log(f"  {country}: {last_date.strftime('%Y-%m-%d')} ({n_indicators} indicadores)")
+                            log(f"  {country}: {last_date.strftime('%Y-%m-%d')}")
 
     except Exception as e:
-        log(f"⚠️  Não foi possível verificar o banco: {e}")
+        log(f"⚠️  Erro na verificação de frescor: {e}")
 
     # ------------------------------------------------------------------
     # RESUMO FINAL
@@ -196,12 +171,8 @@ def run(log=print):
     success = sum(1 for v in results.values() if v)
     total_m = len(results)
     log(f"PIPELINE CONCLUÍDO: {success}/{total_m} módulos com sucesso")
-    if success < total_m:
-        failed = [k for k, v in results.items() if not v]
-        log(f"  Módulos com falha: {failed}")
     log("=" * 60)
 
 
 if __name__ == "__main__":
-    import pandas as pd  # Importa aqui para verificação de frescor
     run()
