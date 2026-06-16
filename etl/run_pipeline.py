@@ -1,16 +1,19 @@
 """
-etl/run_pipeline.py — v3
+etl/run_pipeline.py — v4 CORRIGIDO
 
 CORREÇÕES:
-- Ordem correta: clean_expanded SEMPRE por último
-- Retry com backoff por módulo
+- Validação de frescor dos dados (alerta se dados > 60 dias)
+- Logging detalhado de sucesso/falha por módulo
+- Retry com backoff exponencial por módulo
 - Verificação pós-load com detecção de placeholder 100.0
 - Fallback gracioso: falha de um módulo não para o pipeline
+- Novo: Detecção de dados antigos (últimas datas < 60 dias)
 """
 
 import sys
 import time
 from pathlib import Path
+from datetime import datetime, timedelta
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
@@ -18,6 +21,7 @@ if str(ROOT_DIR) not in sys.path:
 
 
 def _safe_run(module, name: str, log=print, retries: int = 2, delay: int = 5) -> bool:
+    """Executa módulo com retry e backoff exponencial."""
     for attempt in range(1, retries + 2):
         try:
             module.run()
@@ -25,13 +29,15 @@ def _safe_run(module, name: str, log=print, retries: int = 2, delay: int = 5) ->
         except Exception as e:
             log(f"  ⚠️  [{name}] tentativa {attempt}/{retries + 1}: {e}")
             if attempt <= retries:
-                log(f"  ⏳ Aguardando {delay}s...")
-                time.sleep(delay)
+                wait_time = delay * (2 ** (attempt - 1))
+                log(f"  ⏳ Aguardando {wait_time}s...")
+                time.sleep(wait_time)
     log(f"  ✗ [{name}] falhou após {retries + 1} tentativas — continuando")
     return False
 
 
 def run(log=print):
+    """Executa pipeline ETL completo com validações."""
     results = {}
 
     try:
@@ -108,6 +114,7 @@ def run(log=print):
     try:
         from database.connection import get_connection
         with get_connection() as conn:
+            # Contagem total
             total = conn.execute(
                 "SELECT COUNT(*) AS n FROM fact_indicator_values"
             ).df()["n"][0]
@@ -119,7 +126,7 @@ def run(log=print):
             else:
                 log(f"✓ {total:,} registros no banco")
 
-                # Detecta placeholder 100.0 no banco
+                # ✅ CORREÇÃO 1: Detecta placeholder 100.0
                 suspicious = conn.execute("""
                     SELECT indicator_code, COUNT(*) as n
                     FROM fact_indicator_values
@@ -138,6 +145,46 @@ def run(log=print):
                 else:
                     log("✓ Nenhum placeholder 100.0 detectado")
 
+                # ✅ CORREÇÃO 2: Verifica frescor dos dados (últimas datas)
+                log("\n📅 Verificação de frescor dos dados:")
+                freshness = conn.execute("""
+                    SELECT 
+                        indicator_code,
+                        country_code,
+                        MAX(period) as last_period,
+                        COUNT(*) as n_records
+                    FROM fact_indicator_values
+                    WHERE is_forecast = FALSE
+                    GROUP BY indicator_code, country_code
+                    ORDER BY last_period DESC
+                """).df()
+
+                if not freshness.empty:
+                    freshness["last_period"] = pd.to_datetime(freshness["last_period"])
+                    now = datetime.now()
+                    freshness["days_old"] = (now - freshness["last_period"]).dt.days
+                    
+                    # Alertas para dados muito antigos
+                    old_data = freshness[freshness["days_old"] > 60]
+                    if not old_data.empty:
+                        log("\n⚠️  ALERTA: Dados com mais de 60 dias:")
+                        for _, row in old_data.iterrows():
+                            log(f"  {row['indicator_code']} ({row['country_code']}): "
+                                f"{row['days_old']} dias atrás ({row['last_period'].strftime('%Y-%m-%d')})")
+                    
+                    # Resumo de frescor
+                    recent = freshness[freshness["days_old"] <= 7]
+                    log(f"\n✓ {len(recent)} indicadores atualizados (≤ 7 dias)")
+                    
+                    # Últimas datas por país
+                    log("\n📊 Últimas datas por país:")
+                    for country in ["USA", "CAN", "MEX"]:
+                        country_data = freshness[freshness["country_code"] == country]
+                        if not country_data.empty:
+                            last_date = country_data["last_period"].max()
+                            n_indicators = len(country_data)
+                            log(f"  {country}: {last_date.strftime('%Y-%m-%d')} ({n_indicators} indicadores)")
+
     except Exception as e:
         log(f"⚠️  Não foi possível verificar o banco: {e}")
 
@@ -155,4 +202,5 @@ def run(log=print):
 
 
 if __name__ == "__main__":
+    import pandas as pd  # Importa aqui para verificação de frescor
     run()
