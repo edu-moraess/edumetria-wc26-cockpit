@@ -69,4 +69,4 @@ def init_schema():
 
 if __name__ == "__main__":
     init_schema()
-    print(f"Schema inicializado com sucesso (backend={DB_BACKEND})")
+    print(f"Schema inicializado com sucesso (backend={DB_BACKEND})") 
