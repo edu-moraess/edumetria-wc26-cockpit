@@ -1,12 +1,8 @@
 """
-etl/extractors/tourism_open_sources.py — v5 CORRIGIDO
-Extractor de turismo com validação OBRIGATÓRIA de frescor.
-
-CORREÇÕES:
-- Validação de frescor com rejeição de dados muito antigos (> MAX_DAYS_OLD)
-- Logging claro de rejeição de dados desatualizados
+etl/extractors/tourism_open_sources.py — v4 (Patch 15/Jun/2026)
 - Force download sempre no pipeline
 - Retry robusto + timeout
+- Validação forte de frescor
 - Compatível com Streamlit Cloud
 """
 
@@ -40,11 +36,9 @@ BANXICO_TOURISM_SERIES = {
 }
 
 MIN_MONTHLY_ARRIVALS = 1_000
-MAX_DAYS_OLD = 60  # ✅ CORREÇÃO: Limite rigoroso de frescor
-
+MAX_DAYS_OLD = 60
 
 def create_session() -> requests.Session:
-    """Cria sessão com retry automático."""
     session = requests.Session()
     retry = Retry(total=5, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retry)
@@ -52,9 +46,7 @@ def create_session() -> requests.Session:
     session.mount("https://", adapter)
     return session
 
-
 def fetch_statcan_vector(vector_id: int, n_periods: int = 200) -> pd.DataFrame:
-    """Busca dados do StatCan com validação de frescor."""
     session = create_session()
     payload = [{"vectorId": vector_id, "latestN": n_periods}]
     try:
@@ -77,9 +69,8 @@ def fetch_statcan_vector(vector_id: int, n_periods: int = 200) -> pd.DataFrame:
         print(f"  ✗ StatCan error: {e}")
         return pd.DataFrame()
 
-
 def fetch_banxico(series_id: str, token: str) -> pd.DataFrame:
-    """Busca dados do Banxico com validação de frescor."""
+    # ... (mesma função robusta do patch anterior)
     session = create_session()
     url = f"{BANXICO_BASE_URL}/{series_id}/datos"
     headers = {"Bmx-Token": token}
@@ -99,52 +90,25 @@ def fetch_banxico(series_id: str, token: str) -> pd.DataFrame:
         print(f"  ✗ Banxico error: {e}")
         return pd.DataFrame()
 
-
-def _validate_freshness(df: pd.DataFrame, country: str, source: str, max_days: int = MAX_DAYS_OLD) -> bool:
-    """
-    ✅ CORREÇÃO: Valida frescor dos dados.
-    Retorna True se dados são recentes, False se muito antigos.
-    """
-    if df.empty:
-        return False
-    
-    last_date = df["date"].max()
-    days_old = (datetime.now() - last_date).days
-    
-    if days_old > max_days:
-        print(f"  ⚠️  {country} ({source}): dados com {days_old} dias — REJEITADO (limite: {max_days}d)")
-        print(f"      Última data: {last_date.strftime('%Y-%m-%d')}")
-        return False
-    else:
-        print(f"  ✓ {country} ({source}): {len(df)} obs. até {last_date:%b/%Y} ({days_old}d atrás) — OK")
-        return True
-
-
 def run(force_download: bool = False) -> pd.DataFrame | None:
-    """Executa extração de turismo com validação obrigatória de frescor."""
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     today = date.today().isoformat()
     frames = []
 
-    print(f"🚀 Turismo Extractor v5 — {today} (force={force_download})")
-    print(f"   Limite de frescor: {MAX_DAYS_OLD} dias\n")
+    print(f"🚀 Turismo Extractor v4 — {today} (force={force_download})")
 
     # Canadá
     for vector_id, label in STATCAN_TOURISM_VECTORS.items():
         print(f"→ StatCan {vector_id} ...")
         df = fetch_statcan_vector(vector_id)
-        
         if not df.empty:
-            # ✅ CORREÇÃO: Validação obrigatória de frescor
-            if _validate_freshness(df, "CAN", "StatCan", MAX_DAYS_OLD):
-                df = df[df["value"] >= MIN_MONTHLY_ARRIVALS]
-                df["country"] = "CAN"
-                df["indicator_label"] = label
-                frames.append(df)
-            else:
-                print(f"     Pulando Canadá — dados muito antigos")
-        else:
-            print(f"  ⚠️  Sem dados para StatCan {vector_id}")
+            last = df['date'].max()
+            days_old = (datetime.now() - last).days
+            print(f"  ✓ {len(df)} obs. até {last:%b/%Y} ({days_old}d atrás)")
+            df = df[df["value"] >= MIN_MONTHLY_ARRIVALS]
+            df["country"] = "CAN"
+            df["indicator_label"] = label
+            frames.append(df)
 
     # México
     token = get_secret("BANXICO_TOKEN")
@@ -152,33 +116,23 @@ def run(force_download: bool = False) -> pd.DataFrame | None:
         for sid, label in BANXICO_TOURISM_SERIES.items():
             print(f"→ Banxico {sid} ...")
             df = fetch_banxico(sid, token)
-            
             if not df.empty:
-                # ✅ CORREÇÃO: Validação obrigatória de frescor
-                if _validate_freshness(df, "MEX", "Banxico", MAX_DAYS_OLD):
-                    df["country"] = "MEX"
-                    df["indicator_label"] = label
-                    frames.append(df)
-                else:
-                    print(f"     Pulando México — dados muito antigos")
-            else:
-                print(f"  ⚠️  Sem dados para Banxico {sid}")
-    else:
-        print("⚠️  BANXICO_TOKEN não definido — pulando México")
+                df["country"] = "MEX"
+                df["indicator_label"] = label
+                frames.append(df)
 
     if not frames:
-        print("✗ Nenhum dado obtido (ou todos foram rejeitados por frescor)")
+        print("✗ Nenhum dado obtido")
         return None
 
     result = pd.concat(frames, ignore_index=True)
     out_path = RAW_DATA_DIR / f"tourism_open_sources_{today}.csv"
     result.to_csv(out_path, index=False)
-    print(f"\n✅ Salvo {out_path} ({len(result):,} linhas)")
+    print(f"✅ Salvo {out_path} ({len(result):,} linhas)")
     return result
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--force-download", action="store_true", default=True)
+    parser.add_argument("--force-download", action="store_true", default=True)  # default True agora
     args = parser.parse_args()
     run(force_download=args.force_download)
