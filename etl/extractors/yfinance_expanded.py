@@ -120,4 +120,4 @@ def run(start: str = "2015-01-01") -> pd.DataFrame | None:
 
 
 if __name__ == "__main__":
-    run()
+    run() 
