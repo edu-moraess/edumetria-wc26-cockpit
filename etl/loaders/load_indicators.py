@@ -1,9 +1,7 @@
 """
-etl/loaders/load_indicators.py — v4 CORRIGIDO
+etl/loaders/load_indicators.py — v3
 
 CORREÇÕES:
-- Validação de frescor antes de carregar parquets antigos
-- Alerta se parquet é mais velho que 7 dias
 - TRUNCATE CASCADE removido — DuckDB não suporta
 - DELETE simples e seguro (sem FK constraints no schema v3)
 - ensure_dims usa queries DuckDB nativas (não sqlite_master)
@@ -13,7 +11,6 @@ CORREÇÕES:
 
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta
 
 import pandas as pd
 
@@ -85,7 +82,6 @@ KNOWN_CODES       = {row[0] for row in INDICATOR_CATALOG}
 
 
 def ensure_dims(conn):
-    """Garante que dimensões existem no banco."""
     try:
         existing_indicators = set(
             conn.execute("SELECT indicator_code FROM dim_indicator").df()["indicator_code"]
@@ -122,7 +118,6 @@ def ensure_dims(conn):
 
 
 def clear_fact_tables(conn):
-    """Limpa tabelas de fatos."""
     print("🧹 Limpando tabelas de fatos...")
     tables = [
         "fact_montecarlo_distribution",
@@ -140,29 +135,8 @@ def clear_fact_tables(conn):
     print()
 
 
-def _check_file_freshness(path: Path) -> tuple[bool, int]:
-    """
-    ✅ CORREÇÃO: Verifica frescor do arquivo parquet.
-    Retorna (is_fresh, days_old).
-    """
-    try:
-        file_mtime = datetime.fromtimestamp(path.stat().st_mtime)
-        days_old = (datetime.now() - file_mtime).days
-        is_fresh = days_old <= 7  # Considera fresco se ≤ 7 dias
-        return is_fresh, days_old
-    except Exception:
-        return False, 999
-
-
 def load_processed_file(conn, path: Path, next_id: int) -> int:
-    """Carrega arquivo parquet com validação de frescor."""
     print(f"Carregando {path.name}...")
-    
-    # ✅ CORREÇÃO: Verifica frescor do arquivo
-    is_fresh, days_old = _check_file_freshness(path)
-    if not is_fresh:
-        print(f"  ⚠️  Arquivo com {days_old} dias — pode estar desatualizado")
-    
     try:
         df = pd.read_parquet(path)
     except Exception as e:
@@ -227,7 +201,6 @@ def load_processed_file(conn, path: Path, next_id: int) -> int:
 
 
 def run():
-    """Executa loader principal."""
     print("=" * 60)
     print("LOADER — fact_indicator_values")
     print("=" * 60)
