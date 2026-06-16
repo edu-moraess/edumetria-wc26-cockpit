@@ -21,3 +21,4 @@ def get_secret(key: str, default: str | None = None) -> str | None:
         pass
 
     return os.getenv(key, default)
+
