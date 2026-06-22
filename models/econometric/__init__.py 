@@ -1,0 +1,9 @@
+"""
+Modelos econométricos para inferência causal.
+DiD (Difference-in-Differences) e Synthetic Control Method.
+"""
+
+from .did import DiDAnalyzer, DiDResult
+from .synthetic_control import SyntheticControl, SCResult
+
+__all__ = ["DiDAnalyzer", "DiDResult", "SyntheticControl", "SCResult"]
