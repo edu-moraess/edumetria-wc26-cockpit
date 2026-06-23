@@ -1,78 +1,69 @@
 """
 dashboards/pages/03_turismo.py
-Página 3 — Turismo Internacional
-Agora todas as opções (CAN, MEX, USA) mostram apenas informativos,
-sem exibir tabela ou dados numéricos.
+Página 3 — Turismo
 """
 
 import sys
 from pathlib import Path
+
 import streamlit as st
+import pandas as pd
 import plotly.graph_objects as go
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from config import FIFA_BASELINE, COUNTRY_NAMES  # noqa: E402
-from dashboards.components import page_header, kpi_row, apply_theme, data_pending_notice  # noqa: E402
+from config import HOST_COUNTRIES, COUNTRY_NAMES  # noqa: E402
+from dashboards.components import page_header, apply_theme  # noqa: E402
+from database.connection import get_connection  # noqa: E402
 
-page_header("Turismo Internacional", "Visitantes · Gastos · Permanência · Fluxos")
+page_header("Turismo", "Chegadas internacionais e impacto do evento")
 
-# ------------------------------------------------------------------
-# KPIs — baseline global
-# ------------------------------------------------------------------
-kpi_items = [("Visitantes Totais (baseline FIFA 2026)", f"{FIFA_BASELINE['global']['visitors_total']:,}", None)]
-kpi_row(kpi_items)
 
-st.markdown("###")
+def load_indicator(indicator_code: str, country_code: str) -> pd.DataFrame:
+    try:
+        with get_connection() as conn:
+            df = conn.execute("SELECT period, value FROM fact_indicator_values WHERE indicator_code = ? AND country_code = ? ORDER BY period", [indicator_code, country_code]).df()
+        df["period"] = pd.to_datetime(df["period"])
+        return df
+    except Exception:
+        return pd.DataFrame(columns=["period", "value"])
 
-# ------------------------------------------------------------------
-# Seleção de país
-# ------------------------------------------------------------------
-country_code = st.selectbox(
-    "País",
-    ["CAN", "MEX", "USA"],
-    format_func=lambda c: COUNTRY_NAMES.get(c, c),
-)
 
-tabs = st.tabs(["Série Histórica", "Setores Beneficiados (em desenvolvimento)", "Comparação CAN vs MEX"])
+has_data = False
+try:
+    with get_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) AS n FROM fact_indicator_values").df()["n"][0]
+        has_data = count > 0
+except:
+    pass
 
-# ------------------------------------------------------------------
-# Aba 1 — Série Histórica
-# ------------------------------------------------------------------
-with tabs[0]:
-    st.subheader(f"Chegadas de turistas internacionais — {COUNTRY_NAMES[country_code]}")
+if not has_data:
+    st.warning("⚠️ **Sem dados disponíveis**")
+    st.info("Clique em **'🎲 Criar dados de demonstração'** na sidebar.")
+    st.stop()
 
-    if country_code == "USA":
-        data_pending_notice("Turismo EUA (NTTO) — download manual pendente")
-    elif country_code == "CAN":
-        data_pending_notice("Turismo Canadá (StatCan) — sem dados carregados")
-    elif country_code == "MEX":
-        data_pending_notice("Turismo México (Banxico) — sem dados carregados")
+st.subheader("Chegadas de Turistas Internacionais")
+fig = go.Figure()
+has_tourism = False
 
-# ------------------------------------------------------------------
-# Aba 2 — Setores Beneficiados
-# ------------------------------------------------------------------
-with tabs[1]:
-    st.subheader("Decomposição setorial do gasto turístico")
-    st.markdown(
-        """
-        Esta seção apresentará a **receita incremental por setor**
-        (hotelaria, aviação, restaurantes, varejo, entretenimento),
-        decompondo o gasto turístico total observado.
+for country_code, label, color in [("CAN", "Canadá", "#3FB68B"), ("MEX", "México", "#C9A227")]:
+    df = load_indicator("TOURISM_ARRIVALS", country_code)
+    if not df.empty:
+        fig.add_trace(go.Scatter(x=df["period"], y=df["value"], mode="lines+markers", name=label, line=dict(color=color)))
+        has_tourism = True
 
-        **Por que ainda não está disponível:**
-        - Requer modelo de Input-Output com multiplicadores setoriais
-        - Gasto médio por visitante
-        - Permanência média e padrão de consumo por setor
-        """
-    )
-    data_pending_notice("Modelo Input-Output (multiplicadores setoriais)")
+if has_tourism:
+    apply_theme(fig)
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("⏳ Dados de turismo não disponíveis")
 
-# ------------------------------------------------------------------
-# Aba 3 — Comparação CAN vs MEX
-# ------------------------------------------------------------------
-with tabs[2]:
-    st.subheader("Comparação: Canadá vs. México")
-    data_pending_notice("Comparação CAN vs MEX — sem dados carregados")
+st.subheader("Projeção de Impacto — Copa 2026")
+st.markdown("""
+**Baseline FIFA:**
+- Visitantes totais estimados: **6.5 milhões**
+- Distribuição: EUA (principal), Canadá, México
+- Impacto econômico líquido: **US$ 40.9 bn**
+""")
