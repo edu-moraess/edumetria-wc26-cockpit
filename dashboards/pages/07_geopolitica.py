@@ -1,12 +1,7 @@
 """
-dashboards/pages/07_geopolitica.py — v3 CORRIGIDO
-World Cup Risk Score 2.0 (multicamadas) + Petróleo + VIX + Stress Financeiro.
-
-CORREÇÕES v3:
-- REMOVIDO TED Spread (descontinuado) da UI e documentação
-- ADICIONADO SOFR (Secured Overnight Financing Rate)
-- Alinhamento com Risk Score v3 (validação de frescor)
-- Melhor tratamento de dados ausentes/desatualizados
+dashboards/pages/07_geopolitica.py
+Página 7 — Geopolítica e Risco Global
+VERSÃO v4: Sem HTML mal formatado, dados em tempo real, componentes nativos Streamlit
 """
 
 import sys
@@ -20,241 +15,156 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from config import THEME, HOST_COUNTRIES, COUNTRY_NAMES, REALTIME_REFRESH_SECONDS  # noqa: E402
 from dashboards.components import page_header, kpi_row, apply_theme, data_pending_notice  # noqa: E402
 from database.connection import get_connection  # noqa: E402
-from models.montecarlo.risk_score_v2 import calculate_risk_score_v2  # noqa: E402
 
-# Variáveis de tema
-from config import THEME  # noqa: E402
-bg = THEME["background"]; surface = THEME["surface"]; border = THEME["border"]
-primary = THEME["primary"]; secondary = THEME["secondary"]; text = THEME["text"]
-positive = THEME["positive"]; negative = THEME["negative"]; warning = THEME["warning"]
-font = THEME["font_family"]
+page_header(
+    "Geopolítica e Risco Global",
+    "Avaliação de risco sistêmico, geopolítico e energético",
+)
 
-page_header("Geopolítica & Risk Monitor", "World Cup Risk Score 2.0 · Petróleo · VIX · Stress Financeiro")
-
-
-@st.cache_data(ttl=600)
-def load_indicator(indicator_code: str) -> pd.DataFrame:
+@st.cache_data(ttl=REALTIME_REFRESH_SECONDS)
+def load_indicator(indicator_code: str, country_code: str = None) -> pd.DataFrame:
     with get_connection() as conn:
-        df = conn.execute(
-            "SELECT period, value FROM fact_indicator_values "
-            "WHERE indicator_code = ? ORDER BY period",
-            [indicator_code],
-        ).df()
-    if df.empty:
-        return pd.DataFrame(columns=["period", "value"])
-    df["period"] = pd.to_datetime(df["period"])
-    df = df.drop_duplicates(subset=["period"], keep="last")
-    return df
+        if country_code:
+            df = conn.execute(
+                "SELECT period, value FROM fact_indicator_values WHERE indicator_code = ? AND country_code = ? ORDER BY period",
+                [indicator_code, country_code],
+            ).df()
+        else:
+            df = conn.execute(
+                "SELECT period, value FROM fact_indicator_values WHERE indicator_code = ? ORDER BY period",
+                [indicator_code],
+            ).df()
+        df["period"] = pd.to_datetime(df["period"])
+        return df
 
-
-@st.cache_data(ttl=600)
-def load_risk_score():
-    return calculate_risk_score_v2()
-
-
-result = load_risk_score()
 
 # ------------------------------------------------------------------
-# KPIs
+# KPIs — DADOS REAIS
 # ------------------------------------------------------------------
-kpi_items = []
+st.subheader("Métricas de Risco (dados reais)")
 
-if result["risk_score"] is not None:
-    kpi_items.append(("WC Risk Score 2.0", f"{result['risk_score']:.0f}/100", result["classification"]))
-else:
-    kpi_items.append(("WC Risk Score 2.0", "—", None))
-
-for code, label in [
-    ("WTI_CRUDE",  "WTI (US$/bbl)"),
-    ("BRENT_CRUDE","Brent (US$/bbl)"),
-    ("VIX",        "VIX"),
-    ("HY_SPREAD",  "HY Spread (%)"),
+risk_kpis = []
+for code, label, fmt in [
+    ("VIX", "VIX", "{:.2f}"),
+    ("WTI_CRUDE", "WTI Crude", "${:.2f}"),
+    ("BRENT_CRUDE", "Brent Crude", "${:.2f}"),
+    ("NATURAL_GAS", "Gás Natural", "${:.2f}"),
+    ("GOLD", "Ouro", "${:.2f}"),
 ]:
     df = load_indicator(code)
     if not df.empty:
-        kpi_items.append((label, f"{df['value'].iloc[-1]:,.2f}", None))
+        last = df["value"].iloc[-1]
+        prev = df["value"].iloc[-2] if len(df) > 1 else last
+        delta = ((last / prev - 1) * 100) if prev else 0
+        risk_kpis.append((label, fmt.format(last), f"{delta:+.2f}%"))
     else:
-        kpi_items.append((label, "—", None))
+        risk_kpis.append((label, "—", None))
 
-kpi_row(kpi_items)
+kpi_row(risk_kpis)
 
 st.markdown("###")
 
-tabs = st.tabs([
-    "Risk Score 2.0",
-    "Petróleo & Energia",
-    "VIX & Stress Financeiro",
-    "Yield Curve",
-])
-
 # ------------------------------------------------------------------
-# ABA 1 — RISK SCORE 2.0
+# GRÁFICO — VIX
 # ------------------------------------------------------------------
-with tabs[0]:
-    st.subheader("World Cup Risk Score 2.0 — Multicamadas")
+st.subheader("VIX — Volatilidade Implícita (S&P 500)")
 
-    st.markdown(
-        """
-        Framework multicamadas combinando **4 dimensões de risco**,
-        cada uma calculada via percentil histórico dos componentes disponíveis.
-        Score final = média ponderada das dimensões (0-100, onde 100 = risco máximo histórico).
-
-        | Dimensão | Peso | Componentes |
-        |---|---|---|
-        | Financeira | 35% | VIX, MOVE Index, HY Spread, SOFR |
-        | Energética | 25% | WTI, Brent, Gás Natural (desvio vs. média 252d) |
-        | Macroeconômica | 25% | Spread 10Y-2Y, 10Y-3M, Leading Index |
-        | Geopolítica | 15% | *Geopolitical Risk Index — integração pendente* |
-
-        **Nota**: O **SOFR** substituiu o TED Spread (descontinuado em 2023) como proxy de stress bancário.
-        """
-    )
-
-    if result["risk_score"] is not None:
-        color_map = {"Baixo": positive, "Moderado": warning,
-                     "Elevado": "#E08E45", "Crítico": negative}
-        color = color_map.get(result["classification"], secondary)
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(
-                f"""
-                <div style="background:{surface}; border:1px solid {border};
-                            border-left:3px solid {color}; border-radius:4px;
-                            padding:0.75rem 1rem;">
-                    <div style="color:{secondary}; font-size:0.68rem;
-                                text-transform:uppercase; letter-spacing:0.10em;">
-                        Risk Score 2.0
-                    </div>
-                    <div style="color:{text}; font-size:1.8rem; font-weight:700;">
-                        {result['risk_score']:.1f}<span style="font-size:1rem; color:{secondary};"> / 100</span>
-                    </div>
-                    <div style="color:{color}; font-size:0.85rem; font-weight:600;">
-                        ⚠ {result['classification']}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with col2:
-            st.metric("Completeness", f"{result['completeness_pct']:.0f}%",
-                      help="% do peso do índice coberto por dados reais e recentes")
-        with col3:
-            n_dims = sum(1 for d in result["dimensions"].values() if d["score"] is not None)
-            st.metric("Dimensões ativas", f"{n_dims}/4")
-
-        st.markdown("###")
-
-        # Gauge chart do score
-        fig_gauge = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=result["risk_score"],
-            domain={"x": [0, 1], "y": [0, 1]},
-            title={"text": "World Cup Risk Score 2.0", "font": {"size": 13, "color": text}},
-            number={"font": {"size": 36, "color": text, "family": font}},
-            gauge={
-                "axis": {"range": [0, 100], "tickfont": {"color": secondary, "size": 10}},
-                "bar":  {"color": color, "thickness": 0.25},
-                "bgcolor": surface,
-                "bordercolor": border,
-                "steps": [
-                    {"range": [0, 25],   "color": "rgba(0,212,170,0.15)"},
-                    {"range": [25, 50],  "color": "rgba(255,179,0,0.15)"},
-                    {"range": [50, 75],  "color": "rgba(224,142,69,0.15)"},
-                    {"range": [75, 100], "color": "rgba(255,69,96,0.15)"},
-                ],
-            },
-        ))
-        fig_gauge.update_layout(paper_bgcolor=bg, plot_bgcolor=bg, height=280, margin={"l": 20, "r": 20, "t": 40, "b": 20})
-        st.plotly_chart(fig_gauge, use_container_width=True)
-
-        # Detalhamento por componente
-        with st.expander("🔍 Detalhamento por componente"):
-            for dim_name, dim in result["dimensions"].items():
-                st.markdown(f"**{dim['label']}**")
-                rows = []
-                for code, comp in dim.get("components", {}).items():
-                    detail = comp["detail"]
-                    score  = comp["score"]
-                    detail_str = ""
-                    if detail.get("current_value") is not None:
-                        detail_str += f"Atual: {detail['current_value']:.2f}"
-                    if detail.get("last_date"):
-                        detail_str += f" · Data: {detail['last_date']}"
-                    
-                    rows.append({
-                        "Componente": code,
-                        "Percentil":  f"{score:.1f}" if score is not None else "excluído",
-                        "Status":     detail.get("status", "—"),
-                        "Detalhe":    detail_str,
-                    })
-                if rows:
-                    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
-    else:
-        data_pending_notice("Risk Score 2.0 — rode o pipeline ETL para carregar dados reais")
-
-# ------------------------------------------------------------------
-# ABA 2 — PETRÓLEO & ENERGIA
-# ------------------------------------------------------------------
-with tabs[1]:
-    st.subheader("Petróleo & Energia — impacto nos custos do evento")
+vix_df = load_indicator("VIX")
+if not vix_df.empty:
     fig = go.Figure()
-    has_data = False
-    for code, label, color in [("WTI_CRUDE", "WTI (US$/bbl)", "#4C8BF5"), ("BRENT_CRUDE", "Brent (US$/bbl)", "#00C8FF")]:
-        df = load_indicator(code)
-        if not df.empty:
-            fig.add_trace(go.Scatter(x=df["period"], y=df["value"], mode="lines", name=label, line=dict(color=color, width=1.5)))
-            has_data = True
-    
-    fig.update_layout(title="Commodities energéticas (US$/bbl)")
+    fig.add_trace(go.Scatter(
+        x=vix_df["period"], y=vix_df["value"],
+        mode="lines", name="VIX", line=dict(color="#FF4560", width=1.5)
+    ))
+    fig.add_hline(y=20, line_dash="dash", line_color="#FFB300", annotation_text="Normal (20)")
+    fig.add_hline(y=30, line_dash="dash", line_color="#FF4560", annotation_text="Alerta (30)")
+    fig.add_hline(y=40, line_dash="dash", line_color="#FF0000", annotation_text="Crise (40)")
     apply_theme(fig)
-    if has_data:
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        data_pending_notice("Petróleo — sem dados carregados")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    data_pending_notice("VIX — sem dados carregados")
+
+st.markdown("###")
 
 # ------------------------------------------------------------------
-# ABA 3 — VIX & STRESS FINANCEIRO
+# GRÁFICO — Commodities
 # ------------------------------------------------------------------
-with tabs[2]:
-    st.subheader("VIX, MOVE Index & Stress Financeiro")
-    col1, col2 = st.columns(2)
-    with col1:
-        df_vix = load_indicator("VIX")
-        if not df_vix.empty:
-            fig = go.Figure(go.Scatter(x=df_vix["period"], y=df_vix["value"], mode="lines", line=dict(color=negative, width=1.5), name="VIX"))
-            fig.update_layout(title="VIX — Volatilidade Implícita")
-            apply_theme(fig)
-            st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        df_sofr = load_indicator("SOFR_RATE")
-        if not df_sofr.empty:
-            fig = go.Figure(go.Scatter(x=df_sofr["period"], y=df_sofr["value"], mode="lines", line=dict(color=primary, width=1.5), name="SOFR"))
-            fig.update_layout(title="SOFR — Stress Interbancário (%)")
-            apply_theme(fig)
-            st.plotly_chart(fig, use_container_width=True)
+st.subheader("Commodities — Energia e Ouro")
+
+fig = go.Figure()
+has_data = False
+for code, label, color in [
+    ("WTI_CRUDE", "WTI Crude", "#4C8BF5"),
+    ("BRENT_CRUDE", "Brent Crude", "#00C8FF"),
+    ("NATURAL_GAS", "Gás Natural", "#A78BFA"),
+    ("GOLD", "Ouro", "#FFB300"),
+]:
+    df = load_indicator(code)
+    if not df.empty:
+        fig.add_trace(go.Scatter(
+            x=df["period"], y=df["value"],
+            mode="lines", name=label, line=dict(color=color, width=1.5)
+        ))
+        has_data = True
+
+if has_data:
+    apply_theme(fig)
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    data_pending_notice("Commodities — sem dados carregados")
+
+st.markdown("###")
+
+# ------------------------------------------------------------------
+# RISK SCORE
+# ------------------------------------------------------------------
+st.subheader("World Cup Risk Score 2.0")
+
+from models.montecarlo.risk_score_v2 import RiskScoreV2  # noqa: E402
+
+try:
+    risk_engine = RiskScoreV2()
+    risk_score = risk_engine.calculate()
     
-    df_hy = load_indicator("HY_SPREAD")
-    if not df_hy.empty:
-        fig = go.Figure(go.Scatter(x=df_hy["period"], y=df_hy["value"], mode="lines", line=dict(color=warning, width=1.5), name="HY Spread"))
-        fig.update_layout(title="High Yield Spread — Stress de Crédito (%)")
-        apply_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Score Total", f"{risk_score.total:.1f}")
+    col2.metric("Financeiro (35%)", f"{risk_score.financial:.1f}")
+    col3.metric("Energético (25%)", f"{risk_score.energy:.1f}")
+    col4.metric("Macro (25%)", f"{risk_score.macro:.1f}")
+    
+    st.caption("Geopolítico (15%) — GPR Index pendente")
+    
+except Exception as e:
+    st.error(f"Erro ao calcular Risk Score: {e}")
+
+st.markdown("###")
 
 # ------------------------------------------------------------------
-# ABA 4 — YIELD CURVE
+# Análise Geopolítica
 # ------------------------------------------------------------------
-with tabs[3]:
-    st.subheader("Yield Curve Spreads — EUA")
-    col1, col2 = st.columns(2)
-    for col, code, title in [(col1, "YIELD_SPREAD_10Y2Y", "Spread 10Y-2Y (%)"), (col2, "YIELD_SPREAD_10Y3M", "Spread 10Y-3M (%)")]:
-        with col:
-            df = load_indicator(code)
-            if not df.empty:
-                fig = go.Figure(go.Scatter(x=df["period"], y=df["value"], mode="lines", fill="tozeroy", line=dict(color=primary, width=1.5)))
-                fig.add_hline(y=0, line_dash="dash", line_color=negative)
-                fig.update_layout(title=title)
-                apply_theme(fig)
-                st.plotly_chart(fig, use_container_width=True)
+st.subheader("Análise Geopolítica — Contexto Copa 2026")
+
+with st.expander("🇺🇸 Estados Unidos — Risco Geopolítico", expanded=True):
+    st.markdown("""
+    - **Ameaça terrorista**: Baixa-moderada (infraestrutura de segurança robusta)
+    - **Tensão com México**: Moderada (imigração, comércio)
+    - **Relações com Canadá**: Baixa (aliado histórico)
+    - **Risco cibernético**: Alto (evento global, alvo atraente)
+    """)
+
+with st.expander("🇨🇦 Canadá — Risco Geopolítico"):
+    st.markdown("""
+    - **Ameaça terrorista**: Baixa
+    - **Tensão com EUA**: Baixa-moderada (tarifas, comércio)
+    - **Risco cibernético**: Moderado
+    """)
+
+with st.expander("🇲🇽 México — Risco Geopolítico"):
+    st.markdown("""
+    - **Ameaça terrorista**: Moderada (cartéis, violência organizada)
+    - **Tensão com EUA**: Moderada-alta (imigração, narcotráfico, USMCA)
+    - **Risco cibernético**: Moderado
+    """)
