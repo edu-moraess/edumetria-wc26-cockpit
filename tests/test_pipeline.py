@@ -17,7 +17,6 @@ class TestExtractors:
     
     def test_fred_extractor_structure(self, monkeypatch):
         """FRED extractor retorna DataFrame com colunas esperadas."""
-        # Mock da chamada API
         import pandas as pd
         mock_df = pd.DataFrame({
             "date": pd.date_range("2020-01-01", periods=10, freq="QS"),
@@ -35,7 +34,7 @@ class TestExtractors:
         tickers = yfinance_markets.TICKERS_MAIN
         assert len(tickers) > 0
         assert all(isinstance(t, str) for t in tickers)
-        assert "^GSPC" in tickers  # S&P 500
+        assert "^GSPC" in tickers
 
 
 class TestTransformers:
