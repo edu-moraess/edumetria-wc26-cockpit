@@ -102,9 +102,9 @@ WCLI_CLASSIFICATION = [
 ]
 
 # ------------------------------------------------------------------
-# MONTE CARLO
+# MONTE CARLO — PADRONIZADO (20k simulações, ajustável via env)
 # ------------------------------------------------------------------
-MONTE_CARLO_N_SIMULATIONS = 100_000
+MONTE_CARLO_N_SIMULATIONS = int(os.getenv("MC_N_SIMULATIONS", "20000"))
 MONTE_CARLO_RANDOM_SEED = 42
 
 # ------------------------------------------------------------------
@@ -164,4 +164,10 @@ BRAND = {
     "org": "Edumetria",
     "role": "Quant Data Scientist & Economics Researcher",
     "report_title": "FIFA World Cup 2026™ — Impact Analytics Platform",
-} 
+}
+
+# ------------------------------------------------------------------
+# DADOS EM TEMPO REAL — Configurações
+# ------------------------------------------------------------------
+REALTIME_REFRESH_SECONDS = int(os.getenv("REALTIME_REFRESH_SECONDS", "300"))
+REALTIME_ENABLED = os.getenv("REALTIME_ENABLED", "true").lower() == "true"
