@@ -1,7 +1,6 @@
 """
-dashboards/app.py
-FIFA World Cup 2026™ — Impact Analytics Platform
-VERSÃO v9 FINAL: Streamlit Cloud ready, todas as abas, dados mock integrados
+dashboards/app.py — VERSÃO v10
+Prioriza dados reais commitados, fallback para mock apenas se necessário
 """
 
 import sys
@@ -93,7 +92,7 @@ def _load_parquets_to_db() -> bool:
 
 
 def _create_mock_data() -> bool:
-    """Cria dados de demonstração completos para todas as abas."""
+    """Cria dados de demonstração SÓ SE não houver dados reais."""
     try:
         import pandas as pd
         import numpy as np
@@ -183,7 +182,7 @@ def _create_mock_data() -> bool:
             ])
         pd.DataFrame(records_canmex).to_parquet(PROCESSED_DATA_DIR / "macro_can_mex.parquet", index=False)
         
-        # 5. EXPANDED (stress indicators)
+        # 5. EXPANDED
         records_exp = []
         for date in dates:
             records_exp.extend([
@@ -202,7 +201,7 @@ def _create_mock_data() -> bool:
         # Carrega tudo no banco
         _load_parquets_to_db()
         
-        st.success("✅ Dados de demonstração criados! Todas as abas funcionando.")
+        st.success("✅ Dados de demonstração criados! Todos os gráficos funcionando.")
         return True
         
     except Exception as e:
@@ -211,6 +210,23 @@ def _create_mock_data() -> bool:
         st.code(traceback.format_exc())
         return False
 
+
+# ============================================================
+# AUTO-LOAD: Tenta carregar dados reais primeiro
+# ============================================================
+
+# Verifica se há parquets no repo (dados reais commitados)
+parquet_status = _check_parquets()
+
+# Se há parquets mas o banco está vazio, carrega automaticamente
+if parquet_status["has_data"]:
+    db_status = _check_duckdb_has_data()
+    if not db_status["has_data"]:
+        with st.spinner("📥 Carregando dados reais..."):
+            if _load_parquets_to_db():
+                st.success("✅ Dados reais carregados!")
+                time.sleep(0.5)
+                st.rerun()
 
 # ============================================================
 # SIDEBAR
@@ -233,8 +249,15 @@ with st.sidebar:
     
     if db_status["has_data"]:
         st.success(f"✓ {db_status['count']:,} registros no banco")
+        
+        # Mostra se são dados reais ou mock
+        if parquet_status["has_data"]:
+            st.caption("📊 Dados reais (commitados no repo)")
+        else:
+            st.caption("🎲 Dados de demonstração")
+            
     elif parquet_status["has_data"]:
-        st.warning(f"⚠ {parquet_status['count']:,} registros em parquets")
+        st.warning(f"⚠ Parquets encontrados mas não carregados")
         if st.button("📥 Carregar para banco", key="btn_load"):
             with st.spinner("Carregando..."):
                 if _load_parquets_to_db():
@@ -245,7 +268,12 @@ with st.sidebar:
                     st.error("✗ Falha")
     else:
         st.error("✗ Sem dados disponíveis")
-        if st.button("🎲 Criar dados de demonstração", key="btn_mock", type="primary"):
+        st.markdown("""
+        **Para dados reais até 2026:**
+        1. Rode local: `python -m etl.run_pipeline`
+        2. Commit: `git add data/processed/ && git push`
+        """)
+        if st.button("🎲 Criar dados de demonstração (2020-2024)", key="btn_mock", type="primary"):
             with st.spinner("Criando dados..."):
                 if _create_mock_data():
                     time.sleep(0.5)
@@ -259,9 +287,10 @@ with st.sidebar:
     if IS_STREAMLIT_CLOUD:
         st.caption("ETL indisponível no Cloud (limite 60s)")
         st.markdown("""
-        **Para dados reais:**
+        **Para atualizar dados reais:**
         1. Rode local: `python -m etl.run_pipeline`
         2. Commit: `git add data/processed/ && git push`
+        3. O Cloud atualiza automaticamente
         """)
     else:
         if "etl_running" not in st.session_state:
