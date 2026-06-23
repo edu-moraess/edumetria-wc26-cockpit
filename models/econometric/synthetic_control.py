@@ -44,7 +44,6 @@ class SyntheticControl:
         self._load_data()
     
     def _load_data(self):
-        """Carrega dados do World Bank."""
         import os
         import glob
         
@@ -61,7 +60,6 @@ class SyntheticControl:
             self.df = self._create_mock_data()
     
     def _create_mock_data(self) -> pd.DataFrame:
-        """Dados mock para desenvolvimento."""
         np.random.seed(42)
         countries = ["BRA", "ARG", "CHL", "COL", "MEX", "PER", "DEU", "FRA", "ZAF", "RUS"]
         years = range(2000, 2024)
@@ -96,58 +94,38 @@ class SyntheticControl:
         donors: Optional[List[str]] = None,
         optimization_period: Optional[tuple] = None
     ) -> SCResult:
-        """
-        Ajusta Synthetic Control.
-        
-        Args:
-            treated: País tratado
-            event_year: Ano do evento
-            outcome: Variável de resultado
-            predictors: Variáveis preditoras (None = usa outcome médio pré-evento)
-            donors: Pool de doadores (None = todos exceto tratado)
-            optimization_period: (start, end) para otimização dos pesos
-        """
         
         df = self.df.copy()
         
-        # Determina doadores
         if donors is None:
             donors = df["country_code"].unique().tolist()
             donors = [d for d in donors if d != treated]
         
-        # Período de otimização (pré-evento)
         if optimization_period is None:
             optimization_period = (event_year - 10, event_year - 1)
         
-        # Prepara dados
         pre_period = df[df["year"] <= event_year - 1]
         all_period = df.copy()
         
-        # Pivot para formato wide
         pre_wide = pre_period.pivot(index="year", columns="country_code", values=outcome)
         all_wide = all_period.pivot(index="year", columns="country_code", values=outcome)
         
-        # Dados do tratado e doadores
         y_treated = pre_wide[treated].dropna()
         y_donors = pre_wide[donors].dropna()
         
-        # Alinha índices
         common_years = y_treated.index.intersection(y_donors.index)
         y_treated = y_treated.loc[common_years]
         y_donors = y_donors.loc[common_years]
         
-        # Otimização dos pesos (mínimos quadrados com restrições)
         def objective(w):
             synthetic = y_donors.values @ w
             return np.sum((y_treated.values - synthetic) ** 2)
         
-        # Restrições: pesos >= 0, soma = 1
         constraints = [
             {"type": "eq", "fun": lambda w: np.sum(w) - 1}
         ]
         bounds = [(0, 1) for _ in donors]
         
-        # Initial guess: pesos iguais
         w0 = np.ones(len(donors)) / len(donors)
         
         result = minimize(
@@ -162,27 +140,22 @@ class SyntheticControl:
         weights = dict(zip(donors, result.x))
         weights = {k: round(v, 4) for k, v in weights.items() if v > 0.001}
         
-        # Séries sintética e gap
         all_years = all_wide.index
         synthetic = all_wide[donors].fillna(method="ffill").values @ result.x
         treated_all = all_wide[treated].fillna(method="ffill").values
         
         gap = treated_all - synthetic
         
-        # Pre-RMSPE (Root Mean Square Prediction Error)
         pre_mask = all_years <= event_year - 1
         pre_rmspe = np.sqrt(np.mean(gap[pre_mask] ** 2))
         
-        # Post-gap (média pós-evento)
         post_mask = all_years >= event_year
         post_gap = np.mean(gap[post_mask]) if np.any(post_mask) else 0
         
-        # Teste de placebo (in-time e in-space)
         placebo_p = self._placebo_test(
             all_wide, treated, donors, result.x, event_year, optimization_period
         )
         
-        # DataFrames para visualização
         synthetic_df = pd.DataFrame({
             "year": all_years,
             "treated": treated_all,
@@ -207,24 +180,11 @@ class SyntheticControl:
             gap_series=gap_df
         )
     
-    def _placebo_test(
-        self,
-        all_wide: pd.DataFrame,
-        treated: str,
-        donors: List[str],
-        true_weights: np.ndarray,
-        event_year: int,
-        optimization_period: tuple
-    ) -> float:
-        """
-        Teste de placebo in-space: roda SCM para cada doador como se fosse tratado.
-        Retorna p-value: proporção de doadores com post-gap maior que o tratado.
-        """
+    def _placebo_test(self, all_wide, treated, donors, true_weights, event_year, optimization_period):
         post_gaps = []
         
         for donor in donors:
             try:
-                # Roda SCM para doador como tratado
                 other_donors = [d for d in donors if d != donor]
                 
                 pre_wide = all_wide.loc[optimization_period[0]:optimization_period[1]]
@@ -243,7 +203,6 @@ class SyntheticControl:
                               bounds=[(0, 1)] * len(other_donors),
                               constraints=[{"type": "eq", "fun": lambda w: np.sum(w) - 1}])
                 
-                # Calcula gap pós-evento
                 all_years = all_wide.index
                 synthetic = all_wide[other_donors].fillna(method="ffill").values @ res.x
                 donor_all = all_wide[donor].fillna(method="ffill").values
@@ -259,7 +218,6 @@ class SyntheticControl:
         if not post_gaps:
             return 1.0
         
-        # P-value: proporção de placebos com |gap| >= |gap tratado|
         true_post = np.mean((all_wide[treated].fillna(method="ffill").values - 
                              all_wide[donors].fillna(method="ffill").values @ true_weights)[all_wide.index >= event_year])
         
@@ -267,7 +225,6 @@ class SyntheticControl:
         return p_value
     
     def fit_all_world_cups(self, outcome: str = "tourism_arrivals") -> pd.DataFrame:
-        """Roda SCM para todas as Copas históricas."""
         from models.econometric.did import DiDAnalyzer
         
         wc_info = DiDAnalyzer.WORLD_CUPS
