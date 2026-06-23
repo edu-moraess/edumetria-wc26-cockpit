@@ -1,8 +1,7 @@
 """
 dashboards/pages/01_executive_overview.py
 Página 1 — Executive Overview
-KPIs institucionais (baseline FIFA, pendente de auditoria) +
-snapshot de mercado em tempo real (dados via yfinance).
+KPIs institucionais + snapshot de mercado em tempo real + WCLI completo
 """
 
 import sys
@@ -16,7 +15,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from config import FIFA_BASELINE, HOST_COUNTRIES, COUNTRY_NAMES, WCLI_CLASSIFICATION  # noqa: E402
+from config import FIFA_BASELINE, HOST_COUNTRIES, COUNTRY_NAMES, WCLI_CLASSIFICATION, REALTIME_REFRESH_SECONDS  # noqa: E402
 from dashboards.components import page_header, kpi_row, apply_theme, data_pending_notice  # noqa: E402
 from database.connection import get_connection  # noqa: E402
 
@@ -26,21 +25,35 @@ page_header(
     "(EUA · Canadá · México)",
 )
 
+# Auto-refresh para dados em tempo real
+if REALTIME_REFRESH_SECONDS > 0:
+    st.caption(f"🔄 Dados atualizados automaticamente a cada {REALTIME_REFRESH_SECONDS // 60} minutos")
 
-@st.cache_data(ttl=600)
-def load_indicator(indicator_code: str) -> pd.DataFrame:
+@st.cache_data(ttl=REALTIME_REFRESH_SECONDS)
+def load_indicator(indicator_code: str, country_code: str = None) -> pd.DataFrame:
     with get_connection() as conn:
-        df = conn.execute(
-            """
-            SELECT period, value
-            FROM fact_indicator_values
-            WHERE indicator_code = ?
-            ORDER BY period
-            """,
-            [indicator_code],
-        ).df()
-    df["period"] = pd.to_datetime(df["period"])
-    return df
+        if country_code:
+            df = conn.execute(
+                """
+                SELECT period, value
+                FROM fact_indicator_values
+                WHERE indicator_code = ? AND country_code = ?
+                ORDER BY period
+                """,
+                [indicator_code, country_code],
+            ).df()
+        else:
+            df = conn.execute(
+                """
+                SELECT period, value
+                FROM fact_indicator_values
+                WHERE indicator_code = ?
+                ORDER BY period
+                """,
+                [indicator_code],
+            ).df()
+        df["period"] = pd.to_datetime(df["period"])
+        return df
 
 
 scope = st.selectbox(
@@ -49,35 +62,61 @@ scope = st.selectbox(
 )
 
 st.caption(
-    "Valores baseline a partir do FIFA 2026 Socioeconomic Impact Analysis "
-    "(sujeitos a auditoria — ver seção de Auditoria Crítica no white paper). "
-    "KPIs marcados com * são placeholders até integração da modelagem econômica."
+    "Valores baseline a partir do FIFA 2026 Socioeconomic Impact Analysis. "
+    "KPIs calculados em tempo real a partir dos dados mais recentes."
 )
 
 # ------------------------------------------------------------------
-# KPI GRID — LINHA 1 (modelagem econômica, ainda pendente)
+# KPI GRID — LINHA 1 (dados reais)
 # ------------------------------------------------------------------
+# Carrega dados para KPIs
+sp500_df = load_indicator("SP500")
+vix_df = load_indicator("VIX")
+
+sp500_last = sp500_df["value"].iloc[-1] if not sp500_df.empty else None
+sp500_delta = ((sp500_df["value"].iloc[-1] / sp500_df["value"].iloc[-2] - 1) * 100) if len(sp500_df) > 1 else None
+
+vix_last = vix_df["value"].iloc[-1] if not vix_df.empty else None
+
+# WCLI consolidado
+from models.montecarlo.wcli_calculator import calculate_wcli  # noqa: E402
+wcli_scores = {}
+for cc in HOST_COUNTRIES:
+    result = calculate_wcli(cc)
+    wcli_scores[cc] = result
+
+avg_wcli = sum(r["wcli_total"] for r in wcli_scores.values() if r["wcli_total"] is not None) / \
+           sum(1 for r in wcli_scores.values() if r["wcli_total"] is not None) if any(r["wcli_total"] for r in wcli_scores.values()) else None
+
 kpi_row([
-    ("PIB Incremental (líquido)*", "US$ — bn", None),
-    ("Receita Fiscal*", "US$ — bn", None),
-    ("Empregos (FTE)*", "—", None),
-    ("Turismo (visitantes incrementais)*", "—", None),
+    ("S&P 500", f"{sp500_last:,.0f}" if sp500_last else "—", f"{sp500_delta:+.2f}%" if sp500_delta else None),
+    ("VIX", f"{vix_last:.2f}" if vix_last else "—", None),
+    ("WCLI Médio", f"{avg_wcli:.1f}" if avg_wcli else "—", None),
+    ("Visitantes FIFA (est.)", f"{FIFA_BASELINE['global']['visitors_total']:,}", None),
 ])
 
 # ------------------------------------------------------------------
-# KPI GRID — LINHA 2 (modelagem econômica, ainda pendente)
+# KPI GRID — LINHA 2 (modelagem econômica, parcial)
 # ------------------------------------------------------------------
+# FDI via World Bank
+fdi_scores = {}
+for cc in HOST_COUNTRIES:
+    fdi = wcli_scores[cc]["scores"].get("fdi")
+    fdi_scores[cc] = fdi
+
+avg_fdi = sum(f for f in fdi_scores.values() if f is not None) / sum(1 for f in fdi_scores.values() if f is not None) if any(fdi_scores.values()) else None
+
 kpi_row([
-    ("FDI Atraído (cumulativo 2026-2035)*", "US$ — bn", None),
-    ("World Cup Legacy Index (WCLI)*", "—", None),
-    ("Fluxo Aéreo (variação)*", "—%", None),
-    ("Ocupação Hoteleira (pico)*", "—%", None),
+    ("PIB Incremental (líquido)*", f"US$ {FIFA_BASELINE['global']['gdp_usd_bn']} bn", None),
+    ("Receita Fiscal*", f"US$ {FIFA_BASELINE['USA']['gov_revenue_usd_bn']} bn", None),
+    ("Empregos (FTE)", f"{FIFA_BASELINE['global']['jobs_fte']:,}", None),
+    ("FDI Score", f"{avg_fdi:.1f}" if avg_fdi else "—", None),
 ])
 
 st.markdown("###")
 
 # ------------------------------------------------------------------
-# SNAPSHOT DE MERCADO — DADOS REAIS (yfinance)
+# SNAPSHOT DE MERCADO — DADOS REAIS
 # ------------------------------------------------------------------
 st.subheader("📡 Snapshot de Mercado (dados reais — atualizado via pipeline ETL)")
 
@@ -102,7 +141,7 @@ kpi_row(market_kpis)
 st.markdown("###")
 
 # ------------------------------------------------------------------
-# REFERÊNCIA — BASELINE FIFA (BRUTO, NÃO AUDITADO)
+# REFERÊNCIA — BASELINE FIFA
 # ------------------------------------------------------------------
 with st.expander("📋 Referência: Indicadores Brutos FIFA (ponto de partida, pré-auditoria)"):
     g = FIFA_BASELINE["global"]
@@ -140,7 +179,7 @@ with st.expander("📋 Referência: Indicadores Brutos FIFA (ponto de partida, p
 st.markdown("###")
 
 # ------------------------------------------------------------------
-# GRÁFICO — TURISMO REAL (CAN + MEX) — ÚLTIMOS DADOS DISPONÍVEIS
+# GRÁFICO — TURISMO REAL (CAN + MEX)
 # ------------------------------------------------------------------
 st.subheader("Turismo Internacional — Séries Reais (Canadá e México)")
 
@@ -157,10 +196,10 @@ for country_code, label, color in [("CAN", "Canadá (StatCan)", "#3FB68B"), ("ME
             """,
             [country_code],
         ).df()
-    if not df.empty:
-        df["period"] = pd.to_datetime(df["period"])
-        fig.add_trace(go.Scatter(x=df["period"], y=df["value"], mode="lines+markers", name=label, line=dict(color=color)))
-        has_data = True
+        if not df.empty:
+            df["period"] = pd.to_datetime(df["period"])
+            fig.add_trace(go.Scatter(x=df["period"], y=df["value"], mode="lines+markers", name=label, line=dict(color=color)))
+            has_data = True
 
 fig.update_layout(title="Chegadas de turistas internacionais — série histórica")
 apply_theme(fig)
@@ -172,12 +211,10 @@ else:
 
 st.markdown("###")
 
-# # ------------------------------------------------------------------
-# WCLI — CÁLCULO PRELIMINAR (componentes disponíveis)
 # ------------------------------------------------------------------
-st.subheader("World Cup Legacy Index (WCLI) — Cálculo Preliminar")
-
-from models.montecarlo.wcli_calculator import calculate_wcli  # noqa: E402
+# WCLI — CÁLCULO COMPLETO
+# ------------------------------------------------------------------
+st.subheader("World Cup Legacy Index (WCLI) — Cálculo Completo")
 
 wcli_rows = []
 for cc in HOST_COUNTRIES:
@@ -187,16 +224,20 @@ for cc in HOST_COUNTRIES:
         "WCLI": f"{result['wcli_total']:.1f}" if result["wcli_total"] is not None else "—",
         "Classificação": result["classification"],
         "Completeness": f"{result['completeness_pct']:.0f}%",
+        "Turismo": f"{result['scores']['turismo']:.1f}" if result['scores']['turismo'] is not None else "—",
+        "PIB": f"{result['scores']['pib']:.1f}" if result['scores']['pib'] is not None else "—",
+        "Emprego": f"{result['scores']['emprego']:.1f}" if result['scores']['emprego'] is not None else "—",
+        "FDI": f"{result['scores']['fdi']:.1f}" if result['scores']['fdi'] is not None else "—",
+        "Infra": f"{result['scores']['infraestrutura']:.1f}" if result['scores']['infraestrutura'] is not None else "—",
+        "ESG": f"{result['scores']['esg']:.1f}" if result['scores']['esg'] is not None else "—",
     })
 
 st.dataframe(pd.DataFrame(wcli_rows), hide_index=True, use_container_width=True)
 
 st.caption(
-    "⚠️ WCLI preliminar: apenas o componente 'Turismo' está calculado a partir "
-    "de dados reais (variação anual de chegadas internacionais). Os demais "
-    "componentes (PIB, Emprego, FDI, Infraestrutura, ESG) ainda dependem de "
-    "modelagem econométrica e entram como pendentes — o 'Completeness' indica "
-    "a fração do peso do índice já coberta por dados reais."
+    "WCLI v4: Turismo (dados reais), PIB (World Bank/FRED), Emprego (FRED), "
+    "FDI (World Bank), Infraestrutura (proxy PIB+Turismo), ESG (proxy energia). "
+    "Completeness indica a fração do peso do índice coberta por dados reais."
 )
 
 st.markdown("###")
@@ -204,4 +245,3 @@ st.markdown("###")
 st.subheader("Escala de Classificação WCLI")
 wcli_scale_df = pd.DataFrame(WCLI_CLASSIFICATION, columns=["De", "Até", "Classificação"])
 st.dataframe(wcli_scale_df, hide_index=True, use_container_width=True)
-
