@@ -18,10 +18,10 @@ import sys
 # Adiciona raiz do projeto ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from models.montecarlo.simulation_engine import MonteCarloEngine
+from models.montecarlo.simulation_engine import run_simulation
 from models.montecarlo.risk_score_v2 import RiskScoreV2
-from models.montecarlo.recession_monitor import RecessionMonitor
-from models.montecarlo.wcli_calculator import WCLICalculator
+from models.montecarlo.recession_monitor import calculate_recession_monitor
+from models.montecarlo.wcli_calculator import calculate_wcli
 
 
 # ─── Lifespan (startup/shutdown) ─────────────────────────────────────────────
@@ -32,7 +32,6 @@ async def lifespan(app: FastAPI):
     app.state.data_cache = {}
     app.state.last_refresh = None
     yield
-    # Cleanup no shutdown
     app.state.data_cache.clear()
 
 
@@ -122,19 +121,16 @@ async def get_macro_usa(
     """
     df = load_processed_data("macro_usa")
     
-    # Filtro de datas
     if isinstance(df.index, pd.DatetimeIndex):
         if start_date:
             df = df[df.index >= pd.Timestamp(start_date)]
         if end_date:
             df = df[df.index <= pd.Timestamp(end_date)]
     
-    # Filtro de séries
     if series:
         available = [c for c in series if c in df.columns]
         df = df[available]
     
-    # Resample por frequência
     if freq and freq != "Q":
         df = df.resample(freq).last()
     
@@ -244,19 +240,20 @@ async def get_recession_monitor():
     Indicadores: Sahm Rule, Yield Spreads (10Y-2Y, 10Y-3M), Leading Index, Fed NY Probit.
     """
     try:
-        monitor = RecessionMonitor()
-        result = monitor.calculate()
+        result = calculate_recession_monitor()
         return {
-            "recession_probability": result.probability,
-            "confidence": result.confidence,
-            "indicators": {
-                "sahm_rule": {"value": result.sahm, "threshold": 0.5, "triggered": result.sahm > 0.5},
-                "yield_spread_10y_2y": {"value": result.yield_10y_2y, "inverted": result.yield_10y_2y < 0},
-                "yield_spread_10y_3m": {"value": result.yield_10y_3m, "inverted": result.yield_10y_3m < 0},
-                "leading_index": {"value": result.leading_index, "trend": result.leading_trend},
-                "fed_ny_probit": {"value": result.fed_ny_prob, "horizon": "12 meses"}
+            "recession_probability": result["recession_score"],
+            "classification": result["classification"],
+            "completeness_pct": result["completeness_pct"],
+            "components": {
+                name: {
+                    "probability": comp["data"]["prob"],
+                    "signal": comp["data"].get("signal", "—"),
+                    "weight": comp["weight"]
+                }
+                for name, comp in result["components"].items()
             },
-            "interpretation": _interpret_recession(result.probability),
+            "interpretation": _interpret_recession(result["recession_score"] or 0),
             "references": ["Sahm (2019)", "Estrella & Mishkin (1998)", "Fed NY (2024)"]
         }
     except Exception as e:
@@ -265,7 +262,8 @@ async def get_recession_monitor():
 
 @app.get("/api/v1/forecast/monte-carlo", tags=["Modelos"])
 async def get_monte_carlo_forecast(
-    indicator: str = Query(..., description="Indicador a projetar (GDP, CPI, etc.)"),
+    indicator: str = Query(..., description="Indicador a projetar (GDP_NOMINAL, CPI, etc.)"),
+    country: str = Query("USA", description="País (USA, CAN, MEX)"),
     horizon_years: int = Query(5, ge=1, le=10, description="Horizonte de projeção (anos)"),
     simulations: int = Query(20000, ge=1000, le=50000, description="Número de simulações"),
     distribution: str = Query("student-t", description="student-t ou normal"),
@@ -277,30 +275,34 @@ async def get_monte_carlo_forecast(
     Distribuição Student-t (caudas gordas) via MLE, com fallback para Normal.
     """
     try:
-        engine = MonteCarloEngine(
-            distribution=distribution,
+        result = run_simulation(
+            indicator_code=indicator,
+            country_code=country,
             n_simulations=simulations,
-            horizon_years=horizon_years
+            use_student_t=(distribution == "student-t")
         )
         
-        df = load_processed_data("macro_usa")
-        if indicator not in df.columns:
-            raise HTTPException(status_code=400, detail=f"Indicador '{indicator}' não disponível em macro_usa")
-        
-        result = engine.run(series=df[indicator], percentiles=percentiles)
+        if result is None:
+            raise HTTPException(status_code=400, detail=f"Dados insuficientes para {indicator} ({country})")
         
         return {
             "indicator": indicator,
+            "country": country,
             "horizon_years": horizon_years,
             "simulations": simulations,
-            "distribution": distribution,
+            "distribution": result["distribution"],
+            "df_t": result["df_t"],
             "percentiles": {
-                str(p): result.percentiles[p] for p in percentiles
+                str(p): result["percentiles"][y] 
+                for p in percentiles 
+                for y in result["forecast_years"][:horizon_years]
             },
-            "point_forecast": result.point_forecast,
+            "point_forecast": result["percentiles"][result["forecast_years"][horizon_years-1]]["p50"],
             "confidence_intervals": {
-                "p05_p95": (result.percentiles[0.05], result.percentiles[0.95]),
-                "p25_p75": (result.percentiles[0.25], result.percentiles[0.75])
+                "p05_p95": (
+                    result["percentiles"][result["forecast_years"][horizon_years-1]]["p05"],
+                    result["percentiles"][result["forecast_years"][horizon_years-1]]["p95"]
+                ),
             },
             "methodology": "MLE Student-t (McNeil et al., 2015) com fallback Normal"
         }
@@ -319,21 +321,20 @@ async def get_wcli(
     Componentes: PIB (25%), Emprego (20%), Turismo (20%), FDI (15%), Infraestrutura (10%), ESG (10%).
     """
     try:
-        wcli = WCLICalculator()
-        result = wcli.calculate(country=country, scenario=scenario)
+        result = calculate_wcli(country_code=country)
         
         return {
             "country": country,
             "scenario": scenario,
-            "wcli_score": result.score,
-            "completeness": result.completeness,
+            "wcli_score": result["wcli_total"],
+            "completeness": result["completeness_pct"],
             "components": {
-                "gdp": {"score": result.gdp, "weight": 0.25, "available": result.gdp is not None},
-                "employment": {"score": result.employment, "weight": 0.20, "available": result.employment is not None},
-                "tourism": {"score": result.tourism, "weight": 0.20, "available": result.tourism is not None},
-                "fdi": {"score": result.fdi, "weight": 0.15, "available": result.fdi is not None},
-                "infrastructure": {"score": result.infrastructure, "weight": 0.10, "available": result.infrastructure is not None},
-                "esg": {"score": result.esg, "weight": 0.10, "available": result.esg is not None, "note": "Placeholder — dados de aviação pendentes"}
+                "gdp": {"score": result["scores"]["pib"], "weight": 0.25, "available": result["scores"]["pib"] is not None},
+                "employment": {"score": result["scores"]["emprego"], "weight": 0.20, "available": result["scores"]["emprego"] is not None},
+                "tourism": {"score": result["scores"]["turismo"], "weight": 0.20, "available": result["scores"]["turismo"] is not None},
+                "fdi": {"score": result["scores"]["fdi"], "weight": 0.15, "available": result["scores"]["fdi"] is not None},
+                "infrastructure": {"score": result["scores"]["infraestrutura"], "weight": 0.10, "available": result["scores"]["infraestrutura"] is not None},
+                "esg": {"score": result["scores"]["esg"], "weight": 0.10, "available": result["scores"]["esg"] is not None, "note": "Placeholder — dados de aviação pendentes"}
             },
             "horizon": "2026-2035"
         }
@@ -424,7 +425,6 @@ async def get_synthetic_control(
 def _format_response(df: pd.DataFrame, format: str, filename: str):
     """Formata resposta em JSON, CSV ou Parquet."""
     if format == "json":
-        # Reset index para serialização
         if isinstance(df.index, pd.DatetimeIndex):
             df = df.reset_index()
         if "date" in df.columns:
