@@ -1,25 +1,22 @@
 """
 etl/extractors/world_bank.py
-Extractor de dados históricos via World Bank API (gratuita, sem token).
+Extractor de dados macro do World Bank (dados históricos para DiD/Synthetic Control).
 
-OBJETIVO:
-- Dados históricos das Copas anteriores (2006, 2010, 2014, 2018, 2022)
-  para comparação no Event Study
-- Indicadores macroeconômicos anuais para os 3 países-sede e controles
-- Base para o modelo DiD/Synthetic Control (fase pós-MVP)
+VERSÃO v4: Integrado no pipeline, formato tidy, dados para inferência causal.
 
-ATIVAR: sem configuração adicional necessária — API pública.
-Adicionar ao run_pipeline.py quando pronto para integrar.
-
-REFERÊNCIA: https://datahelpdesk.worldbank.org/knowledgebase/articles/898581
+Séries extraídas:
+- NY.GDP.MKTP.KD.ZG: Crescimento do PIB (%)
+- BX.KLT.DINV.CD.WD: FDI Inflows (US$)
+- ST.INT.ARVL: Chegadas turísticas internacionais
+- ST.INT.RCPT.CD: Receita turística (US$)
 """
 
 import sys
 from pathlib import Path
 from datetime import date
 
-import requests
 import pandas as pd
+import wbgapi as wb
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -27,93 +24,62 @@ if str(ROOT_DIR) not in sys.path:
 
 from config import RAW_DATA_DIR  # noqa: E402
 
-WB_BASE_URL = "https://api.worldbank.org/v2"
-
-# Países host + controles para DiD (similaridade econômica)
-HOST_COUNTRIES    = ["USA", "CAN", "MEX"]
-CONTROL_COUNTRIES = ["GBR", "AUS", "ESP", "FRA", "DEU", "BRA", "ARG", "KOR"]
-ALL_COUNTRIES     = HOST_COUNTRIES + CONTROL_COUNTRIES
-
-# Indicadores World Bank relevantes para o estudo
-WB_INDICATORS = {
-    "NY.GDP.MKTP.CD":       "gdp_current_usd",
-    "NY.GDP.MKTP.KD.ZG":    "gdp_growth_pct",
-    "SP.POP.TOTL":          "population",
-    "FP.CPI.TOTL.ZG":       "inflation_cpi",
-    "SL.UEM.TOTL.ZS":       "unemployment_rate",
-    "BX.KLT.DINV.CD.WD":    "fdi_inflows_usd",
-    "ST.INT.ARVL":           "international_tourist_arrivals",
-    "ST.INT.RCPT.CD":        "tourism_receipts_usd",
-    "NE.TRD.GNFS.ZS":       "trade_pct_gdp",
-    "GC.DOD.TOTL.GD.ZS":    "govt_debt_pct_gdp",
+# Códigos do World Bank
+WB_SERIES = {
+    "NY.GDP.MKTP.KD.ZG": "GDP_GROWTH",
+    "BX.KLT.DINV.CD.WD": "FDI_INFLOWS",
+    "ST.INT.ARVL": "TOURIST_ARRIVALS",
+    "ST.INT.RCPT.CD": "TOURISM_RECEIPTS",
 }
 
-START_YEAR = 2000
-END_YEAR   = 2024
-
-
-def fetch_wb_indicator(indicator: str, countries: list[str]) -> pd.DataFrame:
-    """
-    Busca um indicador do World Bank para múltiplos países.
-    Retorna DataFrame tidy (country, year, value).
-    """
-    country_str = ";".join(countries)
-    url = f"{WB_BASE_URL}/country/{country_str}/indicator/{indicator}"
-    params = {
-        "format":    "json",
-        "per_page":  1000,
-        "mrv":       END_YEAR - START_YEAR + 1,
-        "date":      f"{START_YEAR}:{END_YEAR}",
-    }
-
-    resp = requests.get(url, params=params, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
-
-    if len(data) < 2 or not data[1]:
-        return pd.DataFrame()
-
-    rows = []
-    for item in data[1]:
-        if item.get("value") is None:
-            continue
-        rows.append({
-            "country_code": item["country"]["id"],
-            "country_name": item["country"]["value"],
-            "year":         int(item["date"]),
-            "value":        float(item["value"]),
-        })
-
-    return pd.DataFrame(rows)
+# Países de interesse (ISO3)
+WB_COUNTRIES = [
+    "USA", "CAN", "MEX",  # Sede 2026
+    "BRA", "ZAF", "RUS", "QAT", "DEU",  # Copas anteriores (para DiD)
+    "ARG", "CHL", "COL", "PER", "FRA", "ESP", "GBR", "AUS",  # Controles
+]
 
 
 def run():
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    today  = date.today().isoformat()
+    today = date.today().isoformat()
+    
+    print(f"Baixando dados do World Bank ({len(WB_SERIES)} séries × {len(WB_COUNTRIES)} países)...")
+    
     frames = []
-
-    for indicator, label in WB_INDICATORS.items():
-        print(f"Baixando World Bank {indicator} ({label})...")
+    for wb_code, label in WB_SERIES.items():
         try:
-            df = fetch_wb_indicator(indicator, ALL_COUNTRIES)
+            df = wb.data.DataFrame(wb_code, WB_COUNTRIES, time=range(2000, 2026), numericTimeKeys=True, labels=False)
             if df.empty:
-                print(f"  ⚠️  Sem dados para {indicator}")
+                print(f" ⚠️ {label}: sem dados")
                 continue
+            
+            # Reset index para formato tidy
+            df = df.reset_index()
+            df = df.melt(id_vars=["economy"], var_name="year", value_name="value")
+            df = df.dropna(subset=["value"])
+            
             df["indicator_label"] = label
-            df["indicator_code"]  = indicator
-            frames.append(df)
-            print(f"  → {len(df)} observações ({df['country_code'].nunique()} países)")
+            df["indicator_code"] = f"WB_{label}"
+            df["country_code"] = df["economy"]
+            df["date"] = pd.to_datetime(df["year"].astype(str) + "-12-31")
+            df["value"] = pd.to_numeric(df["value"], errors="coerce")
+            df = df.dropna(subset=["value"])
+            
+            frames.append(df[["country_code", "indicator_code", "indicator_label", "date", "value"]])
+            print(f" ✓ {label}: {len(df)} observações")
+            
         except Exception as e:
-            print(f"  ⚠️  Erro {indicator}: {e}")
-
+            print(f" ⚠️ {label}: erro — {e}")
+    
     if not frames:
-        print("Nenhum dado extraído do World Bank.")
+        print("✗ Nenhum dado do World Bank obtido")
         return None
-
-    result   = pd.concat(frames, ignore_index=True)
+    
+    result = pd.concat(frames, ignore_index=True)
     out_path = RAW_DATA_DIR / f"world_bank_{today}.csv"
     result.to_csv(out_path, index=False)
-    print(f"\nSalvo: {out_path} ({len(result):,} linhas)")
+    print(f"\n✓ Salvo: {out_path} ({len(result):,} linhas, {result['country_code'].nunique()} países)")
     return result
 
 
