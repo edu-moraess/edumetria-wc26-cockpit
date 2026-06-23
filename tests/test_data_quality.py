@@ -134,3 +134,4 @@ class TestPipelineIntegrity:
                 if "date" in df.columns and "indicator" in df.columns:
                     dups = df.duplicated(subset=["date", "indicator"]).sum()
                     assert dups == 0, f"{f} tem {dups} duplicatas"
+ 
