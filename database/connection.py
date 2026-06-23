@@ -1,6 +1,6 @@
 """
-database/connection.py — v3
-CORREÇÕES: init_schema robusto, fallback statement-by-statement
+database/connection.py — v4
+CORREÇÕES: init_schema com ROWID, DuckDB nativo, sem fallback desnecessário
 """
 
 import duckdb
@@ -26,7 +26,7 @@ def get_connection():
             conn.close()
     elif DB_BACKEND == "postgres":
         engine = sqlalchemy.create_engine(POSTGRES_URL)
-        conn   = engine.connect()
+        conn = engine.connect()
         try:
             yield conn
         finally:
@@ -44,17 +44,7 @@ def init_schema():
 
     with get_connection() as conn:
         if DB_BACKEND == "duckdb":
-            try:
-                conn.execute(sql)
-            except Exception:
-                for stmt in sql.split(";"):
-                    stmt = stmt.strip()
-                    if stmt and not stmt.startswith("--"):
-                        try:
-                            conn.execute(stmt)
-                        except Exception as e2:
-                            if "already exists" not in str(e2).lower():
-                                print(f"  ⚠️  Statement ignorado: {e2}")
+            conn.execute(sql)
         elif DB_BACKEND == "postgres":
             for stmt in sql.split(";"):
                 stmt = stmt.strip()
@@ -63,10 +53,10 @@ def init_schema():
                         conn.execute(sqlalchemy.text(stmt))
                     except Exception as e:
                         if "already exists" not in str(e).lower():
-                            print(f"  ⚠️  Postgres statement ignorado: {e}")
+                            print(f" ⚠️ Postgres statement ignorado: {e}")
             conn.commit()
 
 
 if __name__ == "__main__":
     init_schema()
-    print(f"Schema inicializado com sucesso (backend={DB_BACKEND})") 
+    print(f"Schema inicializado com sucesso (backend={DB_BACKEND})")
