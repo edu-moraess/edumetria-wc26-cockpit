@@ -1,41 +1,44 @@
-"""
-dashboards/pages/05_hotelaria.py
-Página 5 — Hotelaria
-"""
-
-import sys
-from pathlib import Path
-
 import streamlit as st
+import plotly.graph_objects as go
+from dashboards.components import page_header, apply_theme
+from utils.data_loader import load_indicator
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+page_header("Hotelaria", "Métricas do setor hoteleiro — ADR, ocupação, RevPAR")
 
-from dashboards.components import page_header  # noqa: E402
-from database.connection import get_connection  # noqa: E402
+adr = load_indicator("HOTEL_ADR", "USA")
+if not adr.empty:
+    fig = go.Figure(go.Scatter(x=adr["period"], y=adr["value"], mode="lines", name="ADR", line=dict(color="#4C8BF5")))
+    fig.update_layout(title="ADR — Average Daily Rate (US$)", xaxis_title="Data", yaxis_title="US$")
+    apply_theme(fig)
+    st.plotly_chart(fig)
 
-page_header("Hotelaria", "Ocupação, ADR, RevPAR e pipeline de novos empreendimentos")
+occ = load_indicator("HOTEL_OCCUPANCY", "USA")
+if not occ.empty:
+    fig = go.Figure(go.Scatter(x=occ["period"], y=occ["value"], mode="lines", name="Ocupação", line=dict(color="#00D4AA")))
+    fig.update_layout(title="Taxa de Ocupação (%)", xaxis_title="Data", yaxis_title="%")
+    apply_theme(fig)
+    st.plotly_chart(fig)
 
-has_data = False
-try:
-    with get_connection() as conn:
-        count = conn.execute("SELECT COUNT(*) AS n FROM fact_indicator_values").df()["n"][0]
-        has_data = count > 0
-except:
-    pass
+rev = load_indicator("HOTEL_REVPAR", "USA")
+if not rev.empty:
+    fig = go.Figure(go.Scatter(x=rev["period"], y=rev["value"], mode="lines", name="RevPAR", line=dict(color="#FFB300")))
+    fig.update_layout(title="RevPAR — Revenue per Available Room (US$)", xaxis_title="Data", yaxis_title="US$")
+    apply_theme(fig)
+    st.plotly_chart(fig)
 
-if not has_data:
-    st.warning("⚠️ **Sem dados disponíveis**")
-    st.info("Clique em **'🎲 Criar dados de demonstração'** na sidebar.")
-    st.stop()
+st.markdown("### Ações de Redes Hoteleiras")
+tickers = {"MAR": "Marriott", "HLT": "Hilton", "H": "Hyatt"}
+fig = go.Figure()
+for code, name in tickers.items():
+    df = load_indicator(code, "USA")
+    if not df.empty:
+        fig.add_trace(go.Scatter(x=df["period"], y=df["value"], mode="lines", name=name))
+if fig.data:
+    fig.update_layout(title="Preço das Ações (US$)", xaxis_title="Data", yaxis_title="US$")
+    apply_theme(fig)
+    st.plotly_chart(fig)
+else:
+    st.info("Dados de ações não disponíveis.")
 
-st.info("⏳ Dados de hotelaria em desenvolvimento — integração com STR/CoStar pendente")
-
-st.subheader("Pipeline de Hotéis — Copa 2026")
-st.markdown("""
-- **Estados Unidos**: 45.000 quartos adicionais em construção
-- **Canadá**: 8.000 quartos (Toronto, Vancouver)
-- **México**: 12.000 quartos (CDMX, Guadalajara, Monterrey)
-- **Ocupação esperada**: 85-95% durante jogos
-""")
+st.markdown("---")
+st.markdown("**Contexto FIFA 2026:** Projeção de 45,000 quartos de hotel necessários nos EUA.")
