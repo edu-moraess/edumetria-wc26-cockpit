@@ -1,0 +1,39 @@
+"""
+utils/page_template.py
+Template padrão para todas as páginas do dashboard.
+"""
+import streamlit as st
+from utils.data_loader import get_data_summary
+
+
+def check_data() -> bool:
+    summary = get_data_summary()
+    if summary["total_records"] == 0:
+        st.error("⚠️ **Banco de dados vazio.**\n\n"
+                 "Rode o pipeline ETL localmente:\n"
+                 "```bash\npython -m etl.run_pipeline\n```\n"
+                 "Ou clique em 'Criar dados de demonstração' na sidebar.")
+        return False
+    return True
+
+
+def page_header(title: str, subtitle: str = ""):
+    st.markdown(f"## {title}")
+    if subtitle:
+        st.markdown(f"*{subtitle}*")
+    st.markdown("---")
+
+
+def data_status_banner():
+    summary = get_data_summary()
+    if summary["total_records"] > 0:
+        cols = st.columns(4)
+        with cols[0]:
+            st.metric("Registros", f"{summary['total_records']:,}")
+        with cols[1]:
+            st.metric("Indicadores", summary["n_indicators"])
+        with cols[2]:
+            st.metric("Países", summary["n_countries"])
+        with cols[3]:
+            st.metric("Última atualização", summary["latest_date"] or "—")
+        st.markdown("---")
