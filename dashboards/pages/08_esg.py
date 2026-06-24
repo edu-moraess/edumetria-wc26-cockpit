@@ -1,41 +1,44 @@
-"""
-dashboards/pages/08_esg.py
-Página 8 — ESG
-"""
-
-import sys
-from pathlib import Path
-
 import streamlit as st
+import plotly.graph_objects as go
+from dashboards.components import page_header, apply_theme
+from utils.data_loader import load_indicator
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+page_header("ESG", "Environmental, Social, Governance — Métricas de sustentabilidade")
 
-from dashboards.components import page_header  # noqa: E402
-from database.connection import get_connection  # noqa: E402
+co2_usa = load_indicator("CO2_EMISSIONS", "USA")
+co2_can = load_indicator("CO2_EMISSIONS", "CAN")
+co2_mex = load_indicator("CO2_EMISSIONS", "MEX")
+fig = go.Figure()
+if not co2_usa.empty:
+    fig.add_trace(go.Scatter(x=co2_usa["period"], y=co2_usa["value"], mode="lines", name="EUA"))
+if not co2_can.empty:
+    fig.add_trace(go.Scatter(x=co2_can["period"], y=co2_can["value"], mode="lines", name="Canadá"))
+if not co2_mex.empty:
+    fig.add_trace(go.Scatter(x=co2_mex["period"], y=co2_mex["value"], mode="lines", name="México"))
+fig.update_layout(title="Emissões de CO₂ (milhões de toneladas)", xaxis_title="Data", yaxis_title="Mt CO₂")
+apply_theme(fig)
+st.plotly_chart(fig)
 
-page_header("ESG", "Environmental, Social, Governance — Copa 2026")
+ren_usa = load_indicator("RENEWABLE_SHARE", "USA")
+ren_can = load_indicator("RENEWABLE_SHARE", "CAN")
+ren_mex = load_indicator("RENEWABLE_SHARE", "MEX")
+fig = go.Figure()
+if not ren_usa.empty:
+    fig.add_trace(go.Scatter(x=ren_usa["period"], y=ren_usa["value"], mode="lines", name="EUA"))
+if not ren_can.empty:
+    fig.add_trace(go.Scatter(x=ren_can["period"], y=ren_can["value"], mode="lines", name="Canadá"))
+if not ren_mex.empty:
+    fig.add_trace(go.Scatter(x=ren_mex["period"], y=ren_mex["value"], mode="lines", name="México"))
+fig.update_layout(title="Participação de Energia Renovável (%)", xaxis_title="Data", yaxis_title="%")
+apply_theme(fig)
+st.plotly_chart(fig)
 
-has_data = False
-try:
-    with get_connection() as conn:
-        count = conn.execute("SELECT COUNT(*) AS n FROM fact_indicator_values").df()["n"][0]
-        has_data = count > 0
-except:
-    pass
+energy = load_indicator("ENERGY_CONSUMPTION", "USA")
+if not energy.empty:
+    fig = go.Figure(go.Scatter(x=energy["period"], y=energy["value"], mode="lines", name="Consumo", line=dict(color="#FFB300")))
+    fig.update_layout(title="Consumo de Energia (TWh)", xaxis_title="Data")
+    apply_theme(fig)
+    st.plotly_chart(fig)
 
-if not has_data:
-    st.warning("⚠️ **Sem dados disponíveis**")
-    st.info("Clique em **'🎲 Criar dados de demonstração'** na sidebar.")
-    st.stop()
-
-st.info("⏳ Dados ESG em desenvolvimento — integração com MSCI/Sustainalytics pendente")
-
-st.subheader("Compromissos FIFA 2026")
-st.markdown("""
-- **Carbono neutro**: compensação de 100% das emissões
-- **Estádios sustentáveis**: certificação LEED/BREEAM
-- **Mobilidade**: transporte público prioritário
-- **Resíduos**: zero waste nos estádios
-""")
+st.markdown("---")
+st.markdown("**FIFA 2026 Commitments:** Net-zero operations, 100% renewable energy in stadiums.")
